@@ -377,9 +377,12 @@
                 return;
             }
             
-            const utterance = new SpeechSynthesisUtterance(name);
+            // 在汉字之间添加空格以提高发音清晰度
+            const spacedName = name.split('').join(' ');
+
+            const utterance = new SpeechSynthesisUtterance(spacedName);
             utterance.lang = 'zh-CN';
-            utterance.rate = 0.9;
+            utterance.rate = 0.8; // 降低语速
             
             utterance.onend = () => {
                 if (onEndCallback) {
