@@ -79,8 +79,7 @@
         
         .sound-toggle {
             background-color: #4caf50;
-            position: relative;
-            padding-left: 50px;
+            /* No special positioning needed, flex handles it */
         }
         
         .sound-toggle.muted {
@@ -89,14 +88,13 @@
         
         .sound-toggle::before {
             content: '';
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
+            /* Sizing for the flex item (icon) */
+            flex-shrink: 0;
             width: 24px;
             height: 24px;
             background-size: contain;
             background-repeat: no-repeat;
+            background-position: center;
         }
         
         .sound-toggle:not(.muted)::before {
@@ -484,3 +482,4 @@
     </script>
 </body>
 </html>
+
