@@ -44,9 +44,15 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
-        .instructions p {
-            margin: 10px 0;
-            font-size: 1.1rem;
+        .browser-warning {
+            background-color: #ff5252;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px auto;
+            max-width: 600px;
+            text-align: center;
+            display: none; /* 默认隐藏 */
         }
         
         .controls {
@@ -251,6 +257,10 @@
         <p>点击卡片听同学名字的发音</p>
     </div>
     
+    <div id="browserWarning" class="browser-warning">
+        您的浏览器不支持语音朗读功能，请使用最新版Chrome、Edge或Safari浏览器打开此页面。
+    </div>
+    
     <div class="instruction">
         小朋友，点击下面的名字卡片，可以听到同学的姓名发音哦！
     </div>
@@ -344,21 +354,42 @@
         const playAllBoys = document.getElementById('playAllBoys');
         const playAllGirls = document.getElementById('playAllGirls');
         const toggleMute = document.getElementById('toggleMute');
+        const browserWarning = document.getElementById('browserWarning');
         
         // 全局状态
         let isMuted = false;
         let speechQueue = [];
         let isPlaying = false;
+        let speechSupported = false;
 
         // 检查浏览器是否支持语音合成
-        function supportsSpeechSynthesis() {
-            return 'speechSynthesis' in window;
+        function checkSpeechSupport() {
+            try {
+                if ('speechSynthesis' in window) {
+                    // 创建测试语音
+                    const utterance = new SpeechSynthesisUtterance('测试');
+                    utterance.lang = 'zh-CN';
+                    
+                    // 尝试获取语音列表
+                    const voices = window.speechSynthesis.getVoices();
+                    
+                    // 检查是否有中文语音
+                    const hasChineseVoice = voices.some(voice => 
+                        voice.lang.includes('zh') || voice.lang.includes('CN')
+                    );
+                    
+                    return voices.length > 0 && hasChineseVoice;
+                }
+                return false;
+            } catch (e) {
+                return false;
+            }
         }
 
         // 朗读名字的函数
         function speakName(name, element = null) {
-            if (isMuted) {
-                // 即使静音也显示视觉反馈
+            if (isMuted || !speechSupported) {
+                // 即使静音或不支持也显示视觉反馈
                 if (element) {
                     element.classList.add('active');
                     setTimeout(() => element.classList.remove('active'), 500);
@@ -390,7 +421,6 @@
                 if (nextItem.element) {
                     nextItem.element.classList.add('active');
                     
-                    // 即使静音也显示动画
                     setTimeout(() => {
                         nextItem.element.classList.remove('active');
                         
@@ -403,7 +433,7 @@
                 }
                 
                 // 只有在非静音状态下才播放声音
-                if (!isMuted) {
+                if (!isMuted && speechSupported) {
                     speakName(nextItem.name);
                 }
             }
@@ -411,6 +441,23 @@
 
         // 初始化页面
         function initPage() {
+            // 检查语音支持
+            speechSupported = checkSpeechSupport();
+            
+            if (!speechSupported) {
+                // 显示浏览器警告
+                browserWarning.style.display = 'block';
+                
+                // 禁用朗读按钮
+                playAllBoys.disabled = true;
+                playAllGirls.disabled = true;
+                
+                // 更新静音按钮状态
+                toggleMute.disabled = true;
+                toggleMute.textContent = '不支持语音';
+                toggleMute.classList.add('muted');
+            }
+            
             // 创建学生卡片
             classmates.forEach(student => {
                 const card = document.createElement('div');
@@ -460,8 +507,10 @@
                 if (!isPlaying) processSpeechQueue();
             });
             
-            // 静音按钮 - 改进后的逻辑
+            // 静音按钮
             toggleMute.addEventListener('click', () => {
+                if (!speechSupported) return;
+                
                 isMuted = !isMuted;
                 
                 if (isMuted) {
@@ -476,14 +525,6 @@
                     toggleMute.classList.remove('muted');
                 }
             });
-            
-            // 检查浏览器支持情况
-            if (!supportsSpeechSynthesis()) {
-                alert('提示：您的浏览器不支持语音朗读功能。请使用 Chrome、Edge 或 Safari 打开此页面。');
-                toggleMute.disabled = true;
-                toggleMute.textContent = '不支持语音';
-                toggleMute.classList.add('muted');
-            }
         }
 
         // 页面加载完成后初始化
