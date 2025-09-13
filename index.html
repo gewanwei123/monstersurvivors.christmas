@@ -44,15 +44,9 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
-        .browser-warning {
-            background-color: #ff5252;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px auto;
-            max-width: 600px;
-            text-align: center;
-            display: none; /* 默认隐藏 */
+        .instructions p {
+            margin: 10px 0;
+            font-size: 1.1rem;
         }
         
         .controls {
@@ -257,10 +251,6 @@
         <p>点击卡片听同学名字的发音</p>
     </div>
     
-    <div id="browserWarning" class="browser-warning">
-        您的浏览器不支持语音朗读功能，请使用最新版Chrome、Edge或Safari浏览器打开此页面。
-    </div>
-    
     <div class="instruction">
         小朋友，点击下面的名字卡片，可以听到同学的姓名发音哦！
     </div>
@@ -272,20 +262,16 @@
     </div>
     
     <div class="student-container">
-        <!-- 男生部分 -->
         <div class="gender-section boys">
             <div class="gender-title">男同学</div>
             <div class="student-list" id="boysList">
-                <!-- 男生名单由JavaScript动态生成 -->
-            </div>
+                </div>
         </div>
         
-        <!-- 女生部分 -->
         <div class="gender-section girls">
             <div class="gender-title">女同学</div>
             <div class="student-list" id="girlsList">
-                <!-- 女生名单由JavaScript动态生成 -->
-            </div>
+                </div>
         </div>
     </div>
     
@@ -354,110 +340,91 @@
         const playAllBoys = document.getElementById('playAllBoys');
         const playAllGirls = document.getElementById('playAllGirls');
         const toggleMute = document.getElementById('toggleMute');
-        const browserWarning = document.getElementById('browserWarning');
         
         // 全局状态
         let isMuted = false;
-        let speechQueue = [];
         let isPlaying = false;
-        let speechSupported = false;
+        let audioUnlocked = false; // 用于跟踪音频是否被用户手势激活
 
         // 检查浏览器是否支持语音合成
-        function checkSpeechSupport() {
-            try {
-                if ('speechSynthesis' in window) {
-                    // 创建测试语音
-                    const utterance = new SpeechSynthesisUtterance('测试');
-                    utterance.lang = 'zh-CN';
-                    
-                    // 尝试获取语音列表
-                    const voices = window.speechSynthesis.getVoices();
-                    
-                    // 检查是否有中文语音
-                    const hasChineseVoice = voices.some(voice => 
-                        voice.lang.includes('zh') || voice.lang.includes('CN')
-                    );
-                    
-                    return voices.length > 0 && hasChineseVoice;
-                }
-                return false;
-            } catch (e) {
-                return false;
-            }
+        function supportsSpeechSynthesis() {
+            return 'speechSynthesis' in window;
+        }
+
+        // “解锁”音频的函数
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            // 尝试播放一个无声的语音来激活
+            const utterance = new SpeechSynthesisUtterance('');
+            window.speechSynthesis.speak(utterance);
+            audioUnlocked = true;
         }
 
         // 朗读名字的函数
-        function speakName(name, element = null) {
-            if (isMuted || !speechSupported) {
-                // 即使静音或不支持也显示视觉反馈
-                if (element) {
-                    element.classList.add('active');
-                    setTimeout(() => element.classList.remove('active'), 500);
-                }
-                return;
-            }
-            
+        function speakName(name, element = null, onEndCallback = null) {
+            if (!supportsSpeechSynthesis()) return;
+
+            // 视觉反馈
             if (element) {
-                // 添加点击动画效果
                 element.classList.add('active');
                 setTimeout(() => element.classList.remove('active'), 500);
+            }
+
+            if (isMuted) {
+                if (onEndCallback) onEndCallback();
+                return;
             }
             
             const utterance = new SpeechSynthesisUtterance(name);
             utterance.lang = 'zh-CN';
             utterance.rate = 0.9;
             
-            // 播放语音
+            utterance.onend = () => {
+                if (onEndCallback) {
+                    setTimeout(onEndCallback, 300); // 名字之间增加一点延迟
+                }
+            };
+
+            // 在播放前清除之前的队列，防止重叠
+            window.speechSynthesis.cancel(); 
             window.speechSynthesis.speak(utterance);
         }
 
-        // 语音队列处理器
-        function processSpeechQueue() {
-            if (speechQueue.length > 0 && !isPlaying) {
-                isPlaying = true;
-                const nextItem = speechQueue.shift();
-                
-                // 添加视觉反馈
-                if (nextItem.element) {
-                    nextItem.element.classList.add('active');
-                    
-                    setTimeout(() => {
-                        nextItem.element.classList.remove('active');
-                        
-                        // 处理下一个
-                        setTimeout(() => {
-                            isPlaying = false;
-                            processSpeechQueue();
-                        }, 800);
-                    }, 500);
-                }
-                
-                // 只有在非静音状态下才播放声音
-                if (!isMuted && speechSupported) {
-                    speakName(nextItem.name);
+        // 顺序朗读函数
+        function playAll(gender) {
+            if (isPlaying) return; // 如果正在播放，则不允许再次点击
+            
+            unlockAudio(); // 每次开始朗读前都尝试解锁
+
+            isPlaying = true;
+            const list = gender === '男' ? boysList : girlsList;
+            const cards = list.querySelectorAll('.student-card');
+            let currentIndex = 0;
+
+            function next() {
+                if (currentIndex < cards.length && isPlaying) {
+                    const card = cards[currentIndex];
+                    const name = card.querySelector('.student-name').textContent;
+                    speakName(name, card, () => {
+                        currentIndex++;
+                        next();
+                    });
+                } else {
+                    isPlaying = false; // 队列播放完成
                 }
             }
+
+            next();
+        }
+
+        // 停止所有朗读
+        function stopAllPlayback() {
+            isPlaying = false;
+            window.speechSynthesis.cancel();
         }
 
         // 初始化页面
         function initPage() {
-            // 检查语音支持
-            speechSupported = checkSpeechSupport();
-            
-            if (!speechSupported) {
-                // 显示浏览器警告
-                browserWarning.style.display = 'block';
-                
-                // 禁用朗读按钮
-                playAllBoys.disabled = true;
-                playAllGirls.disabled = true;
-                
-                // 更新静音按钮状态
-                toggleMute.disabled = true;
-                toggleMute.textContent = '不支持语音';
-                toggleMute.classList.add('muted');
-            }
-            
             // 创建学生卡片
             classmates.forEach(student => {
                 const card = document.createElement('div');
@@ -469,12 +436,12 @@
                     <div class="student-gender">${student.gender}</div>
                 `;
                 
-                // 添加点击事件
                 card.addEventListener('click', () => {
+                    unlockAudio(); // 每次点击都尝试激活音频
+                    stopAllPlayback(); // 如果正在顺序朗读，则停止
                     speakName(student.name, card);
                 });
                 
-                // 添加到相应列表
                 if (student.gender === '男') {
                     boysList.appendChild(card);
                 } else {
@@ -482,52 +449,33 @@
                 }
             });
             
-            // 为全班朗读按钮添加事件
-            playAllBoys.addEventListener('click', () => {
-                const boyCards = boysList.querySelectorAll('.student-card');
-                speechQueue = [];
-                
-                boyCards.forEach(card => {
-                    const name = card.querySelector('.student-name').textContent;
-                    speechQueue.push({ name, element: card });
-                });
-                
-                if (!isPlaying) processSpeechQueue();
-            });
+            playAllBoys.addEventListener('click', () => playAll('男'));
+            playAllGirls.addEventListener('click', () => playAll('女'));
             
-            playAllGirls.addEventListener('click', () => {
-                const girlCards = girlsList.querySelectorAll('.student-card');
-                speechQueue = [];
-                
-                girlCards.forEach(card => {
-                    const name = card.querySelector('.student-name').textContent;
-                    speechQueue.push({ name, element: card });
-                });
-                
-                if (!isPlaying) processSpeechQueue();
-            });
-            
-            // 静音按钮
             toggleMute.addEventListener('click', () => {
-                if (!speechSupported) return;
-                
                 isMuted = !isMuted;
                 
                 if (isMuted) {
                     toggleMute.textContent = '声音关闭';
                     toggleMute.classList.add('muted');
-                    // 停止当前所有语音
-                    window.speechSynthesis.cancel();
-                    speechQueue = [];
-                    isPlaying = false;
+                    stopAllPlayback(); // 静音时停止所有播放
                 } else {
                     toggleMute.textContent = '声音开启';
                     toggleMute.classList.remove('muted');
                 }
             });
+            
+            if (!supportsSpeechSynthesis()) {
+                alert('提示：您的浏览器不支持语音朗读功能。请使用 Chrome、Edge 或 Safari 打开此页面。');
+                toggleMute.disabled = true;
+                toggleMute.textContent = '不支持语音';
+                toggleMute.classList.add('muted');
+            }
+
+            // 增加一个全局点击事件来首次激活音频
+            document.body.addEventListener('click', unlockAudio, { once: true });
         }
 
-        // 页面加载完成后初始化
         window.addEventListener('DOMContentLoaded', initPage);
     </script>
 </body>
