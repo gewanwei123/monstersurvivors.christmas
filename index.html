@@ -223,6 +223,49 @@
             }
         }
 
+        /* 实时音量显示 */
+        .volume-display {
+            position: absolute;
+            bottom: 14px;
+            right: 100px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #666;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 4px 10px;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            pointer-events: none;
+            transition: all 0.2s;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        .volume-display.active {
+            color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        /* 音量小喇叭 */
+        .volume-speaker {
+            position: absolute;
+            bottom: 14px;
+            right: 70px;
+            font-size: 1.3rem;
+            opacity: 0.8;
+            pointer-events: none;
+            animation: speakerPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes speakerPulse {
+            0%, 100% {
+                transform: scale(1) rotateY(0deg);
+            }
+            50% {
+                transform: scale(1.08) rotateY(10deg);
+            }
+        }
+
         /* 角落控制 */
         .corner-controls {
             position: fixed;
@@ -1067,6 +1110,10 @@
         </div>
 
         <div class="zoo-area" id="zooArea">
+            <!-- 实时音量显示 -->
+            <div class="volume-display" id="volumeDisplay">0</div>
+            <!-- 小喇叭图标 -->
+            <div class="volume-speaker">📢</div>
             <div class="next-animal-preview" id="nextAnimalPreview">🐰</div>
         </div>
     </div>
@@ -1298,7 +1345,7 @@
     <script>
         // 配置
         const DEFAULT_SETTINGS = {
-            threshold: 50,
+            threshold: 30,
             speedMultiplier: 1.0,
             pauseTolerance: 5,
             selectedAnimals: ['🐶', '🐱', '🐰', '🐻', '🐨', '🦊', '🦁', '🐐', '🐷', '🐸', '🐔', '🐧', '🦆', '🦉', '🐼', '🦄', '🐮', '🐗']
@@ -1331,6 +1378,7 @@
         const resetTimerButton = document.getElementById('resetTimerButton');
         const clearAnimalsButton = document.getElementById('clearAnimalsButton');
         const progressBar = document.getElementById('progressBar');
+        const volumeDisplay = document.getElementById('volumeDisplay');
         const settingsButton = document.getElementById('settingsButton');
         const pauseButton = document.getElementById('pauseButton');
         const settingsModal = document.getElementById('settingsModal');
@@ -3333,6 +3381,17 @@
 
             // 转换为分贝（近似值）
             currentVolume = Math.round(average * 100 / 255);
+
+            // 更新实时音量显示
+            if (volumeDisplay) {
+                volumeDisplay.textContent = currentVolume;
+                // 音量颜色提示
+                if (currentVolume >= settings.threshold) {
+                    volumeDisplay.classList.add('active');
+                } else {
+                    volumeDisplay.classList.remove('active');
+                }
+            }
 
             // 调试日志：每秒输出一次（约60帧）
             frameCount++;
