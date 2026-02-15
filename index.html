@@ -2062,11 +2062,11 @@
         // 获取中文语音
         function getChineseVoice() {
             const voices = speechSynthesis.getVoices();
+            console.log('获取中文语音，可用语音数量:', voices.length);
             // 优先选择中文语音
             let chineseVoice = voices.find(voice => voice.lang.includes('zh'));
-            // 如果没有中文，尝试其他方式
-            if (!chineseVoice) {
-                chineseVoice = voices.find(voice => voice.lang === 'zh-CN' || voice.lang === 'zh-CN');
+            if (chineseVoice) {
+                console.log('选择中文语音:', chineseVoice.name, chineseVoice.lang);
             }
             return chineseVoice || null;
         }
@@ -2074,6 +2074,7 @@
         // 获取英文语音
         function getEnglishVoice() {
             const voices = speechSynthesis.getVoices();
+            console.log('获取英文语音，可用语音数量:', voices.length);
             // 优先选择美式英语
             let englishVoice = voices.find(voice => voice.lang === 'en-US');
             // 如果没有美式英语，尝试英式英语
@@ -2083,6 +2084,9 @@
             // 如果都没有，尝试任何英语语音
             if (!englishVoice) {
                 englishVoice = voices.find(voice => voice.lang.includes('en'));
+            }
+            if (englishVoice) {
+                console.log('选择英文语音:', englishVoice.name, englishVoice.lang);
             }
             return englishVoice || null;
         }
@@ -2127,14 +2131,29 @@
                 return;
             }
 
+            // 检查语音合成是否可用
+            if (!('speechSynthesis' in window)) {
+                alert('您的浏览器不支持语音朗读功能，请使用 Chrome 浏览器。');
+                console.error('Speech synthesis API not supported');
+                return;
+            }
+
+            // 检查语音是否已加载
+            const voices = speechSynthesis.getVoices();
+            console.log('准备朗读，当前可用语音数量:', voices.length);
+
             const merged = getCurrentContents();
             const category = merged[contentState.category];
             const item = category.items[contentState.itemIndex];
 
-            if (!item) return;
+            if (!item) {
+                console.error('没有找到要朗读的内容');
+                return;
+            }
 
             // 构建要朗读的文本
             let textToRead = '';
+            console.log('朗读内容:', contentState.category, '-', item.title);
 
             if (contentState.category === 'english') {
                 // 英语内容
@@ -2193,6 +2212,7 @@
 
             // 事件处理
             currentUtterance.onstart = function() {
+                console.log('朗读开始');
                 isReading = true;
                 readBtn.classList.add('reading');
                 readBtn.textContent = '⏹';
@@ -2203,6 +2223,7 @@
             };
 
             currentUtterance.onend = function() {
+                console.log('朗读结束');
                 isReading = false;
                 readBtn.classList.remove('reading');
                 readBtn.textContent = '🔊';
@@ -2215,6 +2236,11 @@
 
             currentUtterance.onerror = function(event) {
                 console.error('Speech synthesis error:', event.error);
+                console.error('Error details:', {
+                    error: event.error,
+                    elapsedTime: event.elapsedTime,
+                    name: event.name
+                });
                 isReading = false;
                 readBtn.classList.remove('reading');
                 readBtn.textContent = '🔊';
@@ -2222,7 +2248,7 @@
 
                 // 如果是被取消或中断，不显示错误提示，但恢复音量检测
                 if (event.error !== 'canceled' && event.error !== 'interrupted') {
-                    alert('朗读功能出错，请稍后重试');
+                    alert('朗读功能出错: ' + event.error + '\n请稍后重试');
                 }
                 // 错误时也恢复音量检测
                 isPaused = false;
@@ -2231,6 +2257,7 @@
             };
 
             // 开始朗读
+            console.log('开始朗读:', textToRead.substring(0, 50) + '...');
             speechSynthesis.speak(currentUtterance);
         }
 
@@ -3218,6 +3245,37 @@
 
                 analyser.fftSize = 256;
                 const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                // 初始化语音合成 - 这必须在用户交互（点击按钮）后进行
+                if ('speechSynthesis' in window) {
+                    // 获取语音列表来激活语音合成 API
+                    const voices = speechSynthesis.getVoices();
+                    console.log('语音合成已初始化，可用语音数量:', voices.length);
+
+                    // Chrome 需要这个来激活语音合成
+                    if (voices.length === 0) {
+                        // 等待语音加载
+                        await new Promise(resolve => {
+                            speechSynthesis.onvoiceschanged = function() {
+                                console.log('语音列表已加载，语音数量:', speechSynthesis.getVoices().length);
+                                resolve();
+                            };
+                            // 设置超时，防止无限等待
+                            setTimeout(() => {
+                                console.log('语音加载超时，当前语音数量:', speechSynthesis.getVoices().length);
+                                resolve();
+                            }, 2000);
+                        });
+                    }
+
+                    // 在 HTTPS 环境（Chrome）中，需要先朗读一个空的或极短的文本来完全激活语音合成
+                    const activationUtterance = new SpeechSynthesisUtterance('');
+                    activationUtterance.volume = 0; // 静音，用户听不到
+                    speechSynthesis.speak(activationUtterance);
+                    console.log('语音合成 API 已激活');
+                } else {
+                    console.warn('当前浏览器不支持语音合成 API');
+                }
 
                 isListening = true;
                 startOverlay.classList.add('hidden');
