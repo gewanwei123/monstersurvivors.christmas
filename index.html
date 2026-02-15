@@ -3237,14 +3237,37 @@
         // 启动应用
         async function startApp() {
             try {
+                console.log('正在请求麦克风权限...');
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('麦克风权限已获取，音频轨道数:', stream.getAudioTracks().length);
+
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('AudioContext 已创建，状态:', audioContext.state);
+
+                // Chrome/HTTPS 环境下，AudioContext 可能处于 suspended 状态，需要恢复
+                if (audioContext.state === 'suspended') {
+                    console.log('AudioContext 处于暂停状态，正在恢复...');
+                    await audioContext.resume();
+                    console.log('AudioContext 已恢复，状态:', audioContext.state);
+                }
+
                 analyser = audioContext.createAnalyser();
                 microphone = audioContext.createMediaStreamSource(stream);
                 microphone.connect(analyser);
 
+                // 检查音频轨道状态
+                const audioTracks = stream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    console.log('音频轨道状态:', audioTracks[0].label, 'enabled:', audioTracks[0].enabled, 'muted:', audioTracks[0].muted);
+                    if (!audioTracks[0].enabled) {
+                        console.warn('音频轨道未启用，尝试启用...');
+                        audioTracks[0].enabled = true;
+                    }
+                }
+
                 analyser.fftSize = 256;
                 const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                console.log('音频分析器已设置，fftSize:', analyser.fftSize);
 
                 // 初始化语音合成 - 这必须在用户交互（点击按钮）后进行
                 if ('speechSynthesis' in window) {
@@ -3289,8 +3312,19 @@
         }
 
         // 分析音量
+        let frameCount = 0; // 用于调试日志计数
         function analyzeVolume(dataArray) {
             if (!isListening) return;
+
+            // 检查 AudioContext 状态
+            if (audioContext && audioContext.state === 'suspended') {
+                console.error('AudioContext 处于暂停状态！正在尝试恢复...');
+                audioContext.resume().then(() => {
+                    console.log('AudioContext 已恢复');
+                }).catch(err => {
+                    console.error('恢复 AudioContext 失败:', err);
+                });
+            }
 
             analyser.getByteFrequencyData(dataArray);
 
@@ -3299,6 +3333,12 @@
 
             // 转换为分贝（近似值）
             currentVolume = Math.round(average * 100 / 255);
+
+            // 调试日志：每秒输出一次（约60帧）
+            frameCount++;
+            if (frameCount % 60 === 0) {
+                console.log('当前音量:', currentVolume, '阈值:', settings.threshold, '进度:', spawnProgress.toFixed(1), 'AudioContext状态:', audioContext ? audioContext.state : 'null');
+            }
 
             if (!isPaused) {
                 // 当音量超过阈值时，累积生成进度
