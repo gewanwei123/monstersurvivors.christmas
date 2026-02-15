@@ -1,0 +1,3501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>早读动物园</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 8px 15px 4px 15px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+            height: auto;
+            min-height: 50px;
+            max-height: 8vh;
+        }
+
+        .header h1 {
+            font-size: clamp(0.9rem, 2.2vw, 1.5rem);
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+
+        .header p {
+            font-size: clamp(0.6rem, 0.85vw, 0.75rem);
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            gap: 1.2vw;
+            padding: 1vh 1.5vw 1vh 1.5vw;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .content-sidebar {
+            flex: 0 0 min(380px, 32vw);
+            min-width: 280px;
+            max-width: 45vw;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .zoo-area {
+            flex: 1;
+            background: linear-gradient(180deg, #87CEEB 0%, #87CEEB 70%, #90EE90 70%, #90EE90 100%);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                height: 6vh;
+                min-height: 40px;
+                max-height: 55px;
+                padding: 4px 15px;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+            }
+
+            .header p {
+                font-size: 0.75rem;
+            }
+
+            .main-container {
+                flex-direction: column;
+                padding: 5px 10px 70px 10px;
+                gap: 8px;
+            }
+
+            .content-sidebar {
+                flex: 0 0 auto;
+                min-width: unset;
+                max-width: unset;
+                max-height: 28vh;
+            }
+
+            .corner-controls {
+                padding: 6px 10px;
+            }
+
+            .corner-controls .timer-display {
+                font-size: 1rem;
+            }
+
+            .corner-btn,
+            .reset-btn,
+            .pause-btn-inline {
+                width: 30px;
+                height: 30px;
+                font-size: 1rem;
+            }
+
+            .bottom-progress-bar {
+                height: 5px;
+            }
+
+            /* 内容面板移动端优化 */
+            .tab-item {
+                padding: 4px 8px;
+                font-size: 0.75rem;
+            }
+
+            .nav-btn {
+                width: 26px;
+                height: 26px;
+                font-size: 0.9rem;
+            }
+
+            .content-controls {
+                gap: 6px;
+                padding: 4px 8px;
+            }
+        }
+
+        .animal {
+            position: absolute;
+            font-size: 40px;
+            animation: fadeIn 0.5s ease-out;
+            cursor: pointer;
+            user-select: none;
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));
+        }
+
+        .animal:hover {
+            transform: scale(1.2);
+            transition: transform 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+        }
+
+        /* 底部进度条 */
+        .bottom-progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .progress-fill {
+            flex: 1;
+            height: 100%;
+            background: #e0e0e0;
+            position: relative;
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 0;
+            transition: width 0.3s, background 0.5s;
+            width: 0%;
+        }
+
+        /* 进度条颜色分级 */
+        .progress-bar-inner.level-0 { background: linear-gradient(90deg, #90CAF9, #64B5F6); } /* 0-20% 蓝色 */
+        .progress-bar-inner.level-1 { background: linear-gradient(90deg, #81C784, #66BB6A); } /* 20-40% 浅绿 */
+        .progress-bar-inner.level-2 { background: linear-gradient(90deg, #4CAF50, #8BC34A); } /* 40-60% 绿色 */
+        .progress-bar-inner.level-3 { background: linear-gradient(90deg, #FFB74D, #FFA726); } /* 60-80% 橙色 */
+        .progress-bar-inner.level-4 { background: linear-gradient(90deg, #FF7043, #FF5722); } /* 80-90% 橙红 */
+        .progress-bar-inner.level-5 { background: linear-gradient(90deg, #E53935, #C62828); } /* 90-100% 红色 */
+
+        .progress-bar-inner.glowing {
+            box-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+            animation: glowPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% {
+                filter: brightness(1);
+            }
+            50% {
+                filter: brightness(1.2);
+            }
+        }
+
+        /* 角落控制 */
+        .corner-controls {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+            z-index: 99;
+        }
+
+        .timer-corner {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 0.8vw, 6px);
+        }
+
+        .corner-controls .timer-display {
+            font-size: clamp(1.1rem, 1.6vw, 1.3rem);
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-family: 'Courier New', monospace;
+            padding: 0 4px;
+        }
+
+        /* 统一的角落按钮样式 */
+        .corner-btn,
+        .reset-btn,
+        .pause-btn-inline {
+            width: clamp(32px, 4.5vw, 40px);
+            height: clamp(32px, 4.5vw, 40px);
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.95);
+            cursor: pointer;
+            font-size: clamp(0.85rem, 1.2vw, 1rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            transition: all 0.3s;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .corner-btn:hover,
+        .reset-btn:hover,
+        .pause-btn-inline:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .corner-btn:active,
+        .reset-btn:active,
+        .pause-btn-inline:active {
+            transform: scale(0.95);
+        }
+
+        .buttons-corner {
+            display: flex;
+            gap: 6px;
+            pointer-events: auto;
+        }
+
+        .corner-btn.paused {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-settings {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-settings:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-pause {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+
+        .btn-pause:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-pause.paused {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* 美化模态框滚动条 */
+        .modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .modal-content::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        .modal-content::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+            font-size: 1.8rem;
+        }
+
+        .setting-group {
+            margin-bottom: 25px;
+        }
+
+        .setting-label {
+            display: block;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .speed-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .speed-slider {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .speed-value {
+            min-width: 60px;
+            text-align: center;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .animal-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .animal-checkbox {
+            display: none;
+        }
+
+        .animal-label {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+        }
+
+        .animal-label:hover {
+            background: #e8e8e8;
+        }
+
+        .animal-checkbox:checked + .animal-label {
+            background: #e8f5e9;
+            border-color: #667eea;
+        }
+
+        .select-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+            flex: 1;
+        }
+
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .start-overlay.hidden {
+            display: none;
+        }
+
+        .start-button {
+            padding: 20px 40px;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .start-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        .status-indicator.active {
+            background: #4CAF50;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-indicator.paused {
+            background: #FFC107;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* 朗读内容面板样式 */
+        .content-panel {
+            position: relative;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: clamp(10px, 2vw, 15px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+            max-height: none;
+        }
+
+        .content-tabs {
+            display: flex;
+            gap: clamp(2px, 0.5vw, 6px);
+            padding: clamp(3px, 0.8vw, 6px) clamp(6px, 1.2vw, 12px);
+            border-bottom: 1px solid #f0f0f0;
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex-shrink: 0;
+        }
+
+        .content-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab-item {
+            padding: clamp(3px, 0.8vw, 6px) clamp(8px, 1.5vw, 14px);
+            border-radius: 20px;
+            background: #f5f5f5;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-size: clamp(0.65rem, 1.2vw, 0.9rem);
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: clamp(2px, 0.4vw, 4px);
+        }
+
+        .tab-item:hover {
+            background: #e8e8e8;
+        }
+
+        .tab-item.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-weight: bold;
+        }
+
+        .content-display {
+            padding: clamp(6px, 1.2vw, 12px) clamp(8px, 1.5vw, 15px);
+            text-align: center;
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        /* 美化滚动条 */
+        .content-display::-webkit-scrollbar {
+            width: clamp(4px, 1vw, 8px);
+        }
+
+        .content-display::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .content-display::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        .content-display::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        .content-title {
+            font-size: clamp(0.95rem, 1.6vw, 1.2rem);
+            font-weight: bold;
+            color: #333;
+            margin-bottom: clamp(2px, 0.4vw, 3px);
+        }
+
+        .content-author {
+            font-size: clamp(0.65rem, 1.0vw, 0.8rem);
+            color: #888;
+            margin-bottom: clamp(4px, 0.8vw, 8px);
+        }
+
+        .pinyin-text {
+            font-size: clamp(0.6rem, 1.0vw, 0.8rem);
+            color: #999;
+            font-family: Arial, sans-serif;
+            letter-spacing: clamp(0.5px, 0.2vw, 1px);
+            margin-bottom: 2px;
+            line-height: 1.5;
+        }
+
+        .content-body {
+            font-size: clamp(1rem, 1.8vw, 1.3rem);
+            line-height: 1.8;
+            color: #2c3e50;
+            font-family: "KaiTi", "楷体", "STKaiti", serif;
+            letter-spacing: clamp(1px, 0.3vw, 2px);
+        }
+
+        .content-body .line {
+            margin: 3px 0;
+        }
+
+        .content-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: clamp(4px, 0.8vw, 10px);
+            padding: clamp(3px, 0.8vw, 6px) clamp(6px, 1.2vw, 12px);
+            border-top: 1px solid #f0f0f0;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            width: clamp(24px, 3.2vw, 32px);
+            height: clamp(24px, 3.2vw, 32px);
+            border-radius: 50%;
+            border: none;
+            background: #f0f0f0;
+            cursor: pointer;
+            font-size: clamp(0.75rem, 1.3vw, 1rem);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .nav-btn.read-btn {
+            background: linear-gradient(135deg, #4CAF50, #8BC34A);
+            color: white;
+            font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+        }
+
+        .nav-btn.read-btn:hover {
+            background: linear-gradient(135deg, #45a049, #7cb342);
+        }
+
+        .nav-btn.read-btn.reading {
+            animation: readingPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes readingPulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.15);
+            }
+        }
+
+        .page-indicator {
+            font-size: clamp(0.65rem, 1.1vw, 0.85rem);
+            color: #666;
+            min-width: clamp(35px, 6vw, 50px);
+            text-align: center;
+        }
+
+        .next-animal-preview {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 2.5rem;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity 0.3s;
+            pointer-events: none;
+            animation: previewBounce 1s ease-in-out infinite;
+        }
+
+        .next-animal-preview.show {
+            opacity: 0.7;
+            transform: scale(1);
+        }
+
+        @keyframes previewBounce {
+            0%, 100% {
+                transform: scale(1) rotate(0deg);
+            }
+            25% {
+                transform: scale(1.1) rotate(-5deg);
+            }
+            50% {
+                transform: scale(1.05) rotate(0deg);
+            }
+            75% {
+                transform: scale(1.1) rotate(5deg);
+            }
+        }
+
+        .progress-fill-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            color: #333;
+            font-weight: bold;
+        }
+
+        /* 上传内容模态框样式 */
+        .upload-modal-content {
+            max-width: 550px;
+        }
+
+        .upload-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .upload-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: #f5f5f5;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .upload-tab:hover {
+            background: #e8e8e8;
+        }
+
+        .upload-tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .upload-content {
+            display: block;
+        }
+
+        .upload-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .upload-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            background: #f9f9f9;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-input:hover {
+            border-color: #667eea;
+            background: #f0f0f0;
+        }
+
+        .text-input,
+        .textarea-input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus,
+        .textarea-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .textarea-input {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .file-format-example {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        .format-example {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #333;
+            white-space: pre-wrap;
+            margin: 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* 管理内容列表样式 */
+        .manage-content-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .content-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+
+        .content-item:hover {
+            background: #e8e8e8;
+        }
+
+        .content-item-info {
+            flex: 1;
+        }
+
+        .content-item-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .content-item-meta {
+            font-size: 0.85rem;
+            color: #999;
+        }
+
+        .content-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: #e0e0e0;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .btn-icon.delete {
+            background: #ffebee;
+            color: #f44336;
+        }
+
+        .btn-icon.delete:hover {
+            background: #ffcdd2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        /* 头像管理样式 */
+        .avatar-grid-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            padding: 10px;
+        }
+
+        .avatar-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #f5f5f5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .avatar-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-item .delete-avatar {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .avatar-item:hover .delete-avatar {
+            opacity: 1;
+        }
+
+        .avatar-item .delete-avatar:hover {
+            background: rgba(244, 67, 54, 1);
+        }
+
+        /* 动物元素支持图片 */
+        .animal img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="start-overlay" id="startOverlay">
+        <button class="start-button" id="startButton">开始早读</button>
+    </div>
+
+    <div class="header">
+        <h1>早读动物园</h1>
+        <p>大声朗读，收集你的动物朋友们！</p>
+    </div>
+
+    <div class="main-container">
+        <div class="content-sidebar">
+            <div class="content-panel" id="contentPanel">
+                <div class="content-tabs" id="contentTabs"></div>
+                <div class="content-display" id="contentDisplay">
+                    <div class="content-title" id="contentTitle"></div>
+                    <div class="content-author" id="contentAuthor"></div>
+                    <div class="pinyin-text" id="pinyinText" style="display:none"></div>
+                    <div class="content-body" id="contentBody"></div>
+                </div>
+                <div class="content-controls">
+                    <button class="nav-btn" id="prevBtn" title="上一篇">◀</button>
+                    <span class="page-indicator" id="contentIndex">1/10</span>
+                    <button class="nav-btn" id="nextBtn" title="下一篇">▶</button>
+                    <button class="nav-btn" id="randomBtn" title="随机">🎲</button>
+                    <button class="nav-btn" id="pinyinBtn" title="显示拼音">拼</button>
+                    <button class="nav-btn read-btn" id="readBtn" title="朗读">🔊</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="zoo-area" id="zooArea">
+            <div class="next-animal-preview" id="nextAnimalPreview">🐰</div>
+        </div>
+    </div>
+
+    <!-- 底部进度条 -->
+    <div class="bottom-progress-bar">
+        <div class="progress-fill">
+            <div class="progress-bar-inner" id="progressBar"></div>
+        </div>
+    </div>
+
+    <!-- 角落按钮 -->
+    <div class="corner-controls">
+        <div class="timer-corner">
+            <div class="timer-display" id="timerDisplay">00:00</div>
+            <button class="reset-btn" id="resetTimerButton" title="重置时间">🔄</button>
+            <button class="corner-btn pause-btn-inline" id="pauseButton" title="暂停">⏸</button>
+        </div>
+        <div class="buttons-corner">
+            <button class="corner-btn" id="clearAnimalsButton" title="清空动物">🗑️</button>
+            <button class="corner-btn" id="settingsButton" title="设置">⚙️</button>
+        </div>
+    </div>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>设置</h2>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">触发阈值</label>
+                <div class="speed-slider-container">
+                    <input type="range" class="speed-slider" id="thresholdSlider" min="20" max="100" value="50">
+                    <span class="speed-value" id="thresholdValue">50</span>
+                </div>
+                <p style="color: #999; font-size: 0.8rem; margin-top: 8px;">
+                    声音达到此值时开始积累进度
+                </p>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">积累速度倍率</label>
+                <div class="speed-slider-container">
+                    <input type="range" class="speed-slider" id="speedMultiplierSlider" min="0.5" max="3" step="0.1" value="1">
+                    <span class="speed-value" id="speedMultiplierValue">1.0x</span>
+                </div>
+                <p style="color: #999; font-size: 0.8rem; margin-top: 8px;">
+                    调节动物生成的快慢，声音越大生成越快
+                </p>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">短暂停顿宽容时间</label>
+                <div class="speed-slider-container">
+                    <input type="range" class="speed-slider" id="pauseToleranceSlider" min="0" max="15" step="1" value="5">
+                    <span class="speed-value" id="pauseToleranceValue">5秒</span>
+                </div>
+                <p style="color: #999; font-size: 0.8rem; margin-top: 8px;">
+                    读书停顿多久后才开始减少进度（0秒=立即减少）
+                </p>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">选择动物种类</label>
+                <div class="animal-grid" id="animalGrid"></div>
+                <div class="select-buttons">
+                    <button class="btn btn-small btn-secondary" id="selectAllButton">全选</button>
+                    <button class="btn btn-small btn-secondary" id="deselectAllButton">全不选</button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">上传头像/表情</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="file" id="avatarInput" accept="image/*" multiple style="display: none;">
+                    <button class="btn btn-small btn-primary" onclick="document.getElementById('avatarInput').click()" style="flex: 1;">📷 上传头像</button>
+                    <button class="btn btn-small btn-secondary" id="manageAvatarsButton" style="flex: 1;">🎭 管理头像</button>
+                </div>
+                <p style="color: #999; font-size: 0.8rem; margin-top: 8px;">
+                    上传小朋友的照片或表情，让早读更有趣！
+                </p>
+            </div>
+
+            <div class="setting-group">
+                <label class="setting-label">自定义内容</label>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-small btn-primary" id="uploadContentBtn" style="flex: 1;">📁 上传</button>
+                    <button class="btn btn-small btn-secondary" id="manageContentBtn" style="flex: 1;">📋 管理</button>
+                </div>
+                <p style="color: #999; font-size: 0.8rem; margin-top: 8px;">
+                    上传自己的朗读内容或管理已添加的内容
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="resetButton">重置</button>
+                <button class="btn btn-primary" id="saveButton">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传内容模态框 -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content upload-modal-content">
+            <div class="modal-header">
+                <h2>上传朗读内容</h2>
+            </div>
+
+            <div class="upload-tabs">
+                <div class="upload-tab active" data-tab="file">📁 文件上传</div>
+                <div class="upload-tab" data-tab="manual">✏️ 手动输入</div>
+            </div>
+
+            <!-- 文件上传 -->
+            <div class="upload-content" id="fileUploadContent">
+                <div class="setting-group">
+                    <label class="setting-label">选择分类</label>
+                    <select class="upload-select" id="uploadCategorySelect">
+                        <option value="poems">📜 古诗</option>
+                        <option value="english">🔤 英语</option>
+                        <option value="pinyin">🔡 拼音</option>
+                        <option value="texts">📖 课文</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">上传文件（.txt格式）</label>
+                    <input type="file" id="fileInput" accept=".txt" class="file-input">
+                    <p style="color: #999; font-size: 0.8rem; margin-top: 8px;">
+                        文件格式：标题行开头用【标题】，作者行用【作者】，拼音行用【拼音】
+                    </p>
+                </div>
+
+                <div class="file-format-example">
+                    <p style="font-weight: bold; font-size: 0.9rem; margin-bottom: 8px;">📄 文件格式示例：</p>
+                    <pre class="format-example">【标题】春晓
+【作者】孟浩然
+【拼音】chūn mián bù jué xiǎo
+
+春眠不觉晓，
+处处闻啼鸟。
+夜来风雨声，
+花落知多少。</pre>
+                </div>
+            </div>
+
+            <!-- 手动输入 -->
+            <div class="upload-content" id="manualInputContent" style="display: none;">
+                <div class="setting-group">
+                    <label class="setting-label">选择分类</label>
+                    <select class="upload-select" id="manualCategorySelect">
+                        <option value="poems">📜 古诗</option>
+                        <option value="english">🔤 英语</option>
+                        <option value="pinyin">🔡 拼音</option>
+                        <option value="texts">📖 课文</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">标题</label>
+                    <input type="text" id="manualTitle" class="text-input" placeholder="请输入标题">
+                </div>
+
+                <div class="setting-group" id="authorGroup">
+                    <label class="setting-label">作者</label>
+                    <input type="text" id="manualAuthor" class="text-input" placeholder="请输入作者（古诗必填）">
+                </div>
+
+                <div class="setting-group" id="pinyinGroup">
+                    <label class="setting-label">拼音</label>
+                    <textarea id="manualPinyin" class="textarea-input" rows="3" placeholder="请输入拼音，每行对应一行内容（古诗可选）"></textarea>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">内容</label>
+                    <textarea id="manualContent" class="textarea-input" rows="5" placeholder="请输入内容，每行一段"></textarea>
+                </div>
+
+                <div class="setting-group" id="descriptionGroup">
+                    <label class="setting-label">说明</label>
+                    <textarea id="manualDescription" class="textarea-input" rows="2" placeholder="请输入说明文字（拼音/课文可选）"></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelUploadButton">取消</button>
+                <button class="btn btn-primary" id="confirmUploadButton">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理自定义内容模态框 -->
+    <div class="modal" id="manageContentModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>我的自定义内容</h2>
+            </div>
+
+            <div class="manage-content-list" id="manageContentList">
+                <!-- 动态生成自定义内容列表 -->
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeManageButton">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理头像模态框 -->
+    <div class="modal" id="manageAvatarsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>我的头像</h2>
+            </div>
+
+            <div class="avatar-grid-container">
+                <div class="avatar-grid" id="avatarGrid">
+                    <!-- 动态生成头像列表 -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeManageAvatarsButton">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const DEFAULT_SETTINGS = {
+            threshold: 50,
+            speedMultiplier: 1.0,
+            pauseTolerance: 5,
+            selectedAnimals: ['🐶', '🐱', '🐰', '🐻', '🐨', '🦊', '🦁', '🐐', '🐷', '🐸', '🐔', '🐧', '🦆', '🦉', '🐼', '🦄', '🐮', '🐗']
+        };
+
+        const ALL_ANIMALS = DEFAULT_SETTINGS.selectedAnimals;
+
+        // 状态
+        let settings = { ...DEFAULT_SETTINGS };
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let isListening = false;
+        let isPaused = false;
+        let currentVolume = 0;
+        let spawnProgress = 0;  // 生成进度 0-50
+        let belowThresholdTime = 0;  // 音量低于阈值的累计时间（秒）
+        let currentPreviewAnimal = null;  // 当前预览的动物
+        let timerInterval = null;
+        let elapsedTime = 0;
+        let customAvatars = [];  // 自定义头像存储（data URL数组）
+
+        // DOM元素
+        const startOverlay = document.getElementById('startOverlay');
+        const startButton = document.getElementById('startButton');
+        const zooArea = document.getElementById('zooArea');
+        const thresholdSlider = document.getElementById('thresholdSlider');
+        const thresholdValue = document.getElementById('thresholdValue');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const resetTimerButton = document.getElementById('resetTimerButton');
+        const clearAnimalsButton = document.getElementById('clearAnimalsButton');
+        const progressBar = document.getElementById('progressBar');
+        const settingsButton = document.getElementById('settingsButton');
+        const pauseButton = document.getElementById('pauseButton');
+        const settingsModal = document.getElementById('settingsModal');
+        const speedMultiplierSlider = document.getElementById('speedMultiplierSlider');
+        const speedMultiplierValue = document.getElementById('speedMultiplierValue');
+        const pauseToleranceSlider = document.getElementById('pauseToleranceSlider');
+        const pauseToleranceValue = document.getElementById('pauseToleranceValue');
+        const animalGrid = document.getElementById('animalGrid');
+        const selectAllButton = document.getElementById('selectAllButton');
+        const deselectAllButton = document.getElementById('deselectAllButton');
+        const saveButton = document.getElementById('saveButton');
+        const resetButton = document.getElementById('resetButton');
+        const avatarInput = document.getElementById('avatarInput');
+        const manageAvatarsButton = document.getElementById('manageAvatarsButton');
+        const manageAvatarsModal = document.getElementById('manageAvatarsModal');
+        const avatarGrid = document.getElementById('avatarGrid');
+        const closeManageAvatarsButton = document.getElementById('closeManageAvatarsButton');
+
+        // 朗读内容数据
+        const READING_CONTENTS = {
+            poems: {
+                name: "古诗",
+                icon: "📜",
+                items: [
+                    {
+                        id: "poem_001",
+                        title: "咏鹅",
+                        author: "骆宾王",
+                        content: ["鹅，鹅，鹅，", "曲项向天歌。", "白毛浮绿水，", "红掌拨清波。"],
+                        pinyin: ["é, é, é,", "qū xiàng xiàng tiān gē.", "bái máo fú lǜ shuǐ,", "hóng zhǎng bō qīng bō."]
+                    },
+                    {
+                        id: "poem_002",
+                        title: "春晓",
+                        author: "孟浩然",
+                        content: ["春眠不觉晓，", "处处闻啼鸟。", "夜来风雨声，", "花落知多少。"],
+                        pinyin: ["chūn mián bù jué xiǎo,", "chù chù wén tí niǎo.", "yè lái fēng yǔ shēng,", "huā luò zhī duō shǎo."]
+                    },
+                    {
+                        id: "poem_003",
+                        title: "静夜思",
+                        author: "李白",
+                        content: ["床前明月光，", "疑是地上霜。", "举头望明月，", "低头思故乡。"],
+                        pinyin: ["chuáng qián míng yuè guāng,", "yí shì dì shàng shuāng.", "jǔ tóu wàng míng yuè,", "dī tóu sī gù xiāng."]
+                    },
+                    {
+                        id: "poem_004",
+                        title: "悯农",
+                        author: "李绅",
+                        content: ["锄禾日当午，", "汗滴禾下土。", "谁知盘中餐，", "粒粒皆辛苦。"],
+                        pinyin: ["chú hé rì dāng wǔ,", "hàn dī hé xià tǔ.", "shéi zhī pán zhōng cān,", "lì lì jiē xīn kǔ."]
+                    },
+                    {
+                        id: "poem_005",
+                        title: "登鹳雀楼",
+                        author: "王之涣",
+                        content: ["白日依山尽，", "黄河入海流。", "欲穷千里目，", "更上一层楼。"],
+                        pinyin: ["bái rì yī shān jìn,", "huáng hé rù hǎi liú.", "yù qióng qiān lǐ mù,", "gèng shàng yī céng lóu."]
+                    },
+                    {
+                        id: "poem_006",
+                        title: "江雪",
+                        author: "柳宗元",
+                        content: ["千山鸟飞绝，", "万径人踪灭。", "孤舟蓑笠翁，", "独钓寒江雪。"],
+                        pinyin: ["qiān shān niǎo fēi jué,", "wàn jìng rén zōng miè.", "gū zhōu suō lì wēng,", "dú diào hán jiāng xuě."]
+                    },
+                    {
+                        id: "poem_007",
+                        title: "寻隐者不遇",
+                        author: "贾岛",
+                        content: ["松下问童子，", "言师采药去。", "只在此山中，", "云深不知处。"],
+                        pinyin: ["sōng xià wèn tóng zǐ,", "yán shī cǎi yào qù.", "zhǐ zài cǐ shān zhōng,", "yún shēn bù zhī chù."]
+                    },
+                    {
+                        id: "poem_008",
+                        title: "小池",
+                        author: "杨万里",
+                        content: ["泉眼无声惜细流，", "树阴照水爱晴柔。", "小荷才露尖尖角，", "早有蜻蜓立上头。"],
+                        pinyin: ["quán yǎn wú shēng xī xì liú,", "shù yīn zhào shuǐ ài qíng róu.", "xiǎo hé cái lù jiān jiān jiǎo,", "zǎo yǒu qīng tíng lì shàng tóu."]
+                    },
+                    {
+                        id: "poem_009",
+                        title: "风",
+                        author: "李峤",
+                        content: ["解落三秋叶，", "能开二月花。", "过江千尺浪，", "入竹万竿斜。"],
+                        pinyin: ["jiě luò sān qiū yè,", "néng kāi èr yuè huā.", "guò jiāng qiān chǐ làng,", "rù zhú wàn gān xié."]
+                    },
+                    {
+                        id: "poem_010",
+                        title: "咏柳",
+                        author: "贺知章",
+                        content: ["碧玉妆成一树高，", "万条垂下绿丝绦。", "不知细叶谁裁出，", "二月春风似剪刀。"],
+                        pinyin: ["bì yù zhuāng chéng yī shù gāo,", "wàn tiáo chuí xià lǜ sī tāo.", "bù zhī xì yè shéi cái chū,", "èr yuè chūn fēng sì jiǎn dāo."]
+                    },
+                    {
+                        id: "poem_011",
+                        title: "凉州词",
+                        author: "王翰",
+                        content: ["葡萄美酒夜光杯，", "欲饮琵琶马上催。", "醉卧沙场君莫笑，", "古来征战几人回。"],
+                        pinyin: ["pú táo měi jiǔ yè guāng bēi,", "yù yǐn pí pá mǎ shàng cuī.", "zuì wò shā chǎng jūn mò xiào,", "gǔ lái zhēng zhàn jǐ rén huí."]
+                    },
+                    {
+                        id: "poem_012",
+                        title: "出塞",
+                        author: "王昌龄",
+                        content: ["秦时明月汉时关，", "万里长征人未还。", "但使龙城飞将在，", "不教胡马度阴山。"],
+                        pinyin: ["qín shí míng yuè hàn shí guān,", "wàn lǐ cháng zhēng rén wèi huán.", "dàn shǐ lóng chéng fēi jiàng zài,", "bù jiào hú mǎ dù yīn shān."]
+                    },
+                    {
+                        id: "poem_013",
+                        title: "芙蓉楼送辛渐",
+                        author: "王昌龄",
+                        content: ["寒雨连江夜入吴，", "平明送客楚山孤。", "洛阳亲友如相问，", "一片冰心在玉壶。"],
+                        pinyin: ["hán yǔ lián jiāng yè rù wú,", "píng míng sòng kè chǔ shān gū.", "luò yáng qīn yǒu rú xiāng wèn,", "yī piàn bīng xīn zài yù hú."]
+                    },
+                    {
+                        id: "poem_014",
+                        title: "鹿柴",
+                        author: "王维",
+                        content: ["空山不见人，", "但闻人语响。", "返景入深林，", "复照青苔上。"],
+                        pinyin: ["kōng shān bù jiàn rén,", "dàn wén rén yǔ xiǎng.", "fǎn yǐng rù shēn lín,", "fù zhào qīng tái shàng."]
+                    },
+                    {
+                        id: "poem_015",
+                        title: "送元二使安西",
+                        author: "王维",
+                        content: ["渭城朝雨浥轻尘，", "客舍青青柳色新。", "劝君更尽一杯酒，", "西出阳关无故人。"],
+                        pinyin: ["wèi chéng zhāo yǔ yì qīng chén,", "kè shè qīng qīng liǔ sè xīn.", "quàn jūn gèng jìn yī bēi jiǔ,", "xī chū yáng guān wú gù rén."]
+                    },
+                    {
+                        id: "poem_016",
+                        title: "九月九日忆山东兄弟",
+                        author: "王维",
+                        content: ["独在异乡为异客，", "每逢佳节倍思亲。", "遥知兄弟登高处，", "遍插茱萸少一人。"],
+                        pinyin: ["dú zài yì xiāng wéi yì kè,", "měi féng jiā jié bèi sī qīn.", "yáo zhī xiōng dì dēng gāo chù,", "biàn chā zhū yú shǎo yī rén."]
+                    },
+                    {
+                        id: "poem_017",
+                        title: "黄鹤楼送孟浩然之广陵",
+                        author: "李白",
+                        content: ["故人西辞黄鹤楼，", "烟花三月下扬州。", "孤帆远影碧空尽，", "唯见长江天际流。"],
+                        pinyin: ["gù rén xī cí huáng hè lóu,", "yān huā sān yuè xià yáng zhōu.", "gū fān yuǎn yǐng bì kōng jìn,", "wéi jiàn cháng jiāng tiān jì liú."]
+                    },
+                    {
+                        id: "poem_018",
+                        title: "早发白帝城",
+                        author: "李白",
+                        content: ["朝辞白帝彩云间，", "千里江陵一日还。", "两岸猿声啼不住，", "轻舟已过万重山。"],
+                        pinyin: ["zhāo cí bái dì cǎi yún jiān,", "qiān lǐ jiāng líng yī rì huán.", "liǎng àn yuán shēng tí bú zhù,", "qīng zhōu yǐ guò wàn chóng shān."]
+                    },
+                    {
+                        id: "poem_019",
+                        title: "望庐山瀑布",
+                        author: "李白",
+                        content: ["日照香炉生紫烟，", "遥看瀑布挂前川。", "飞流直下三千尺，", "疑是银河落九天。"],
+                        pinyin: ["rì zhào xiāng lú shēng zǐ yān,", "yáo kàn pù bù guà qián chuān.", "fēi liú zhí xià sān qiān chǐ,", "yí shì yín hé luò jiǔ tiān."]
+                    },
+                    {
+                        id: "poem_020",
+                        title: "赠汪伦",
+                        author: "李白",
+                        content: ["李白乘舟将欲行，", "忽闻岸上踏歌声。", "桃花潭水深千尺，", "不及汪伦送我情。"],
+                        pinyin: ["lǐ bái chéng zhōu jiāng yù xíng,", "hū wén àn shàng tà gē shēng.", "táo huā tán shuǐ shēn qiān chǐ,", "bù jí wāng lún sòng wǒ qíng."]
+                    },
+                    {
+                        id: "poem_021",
+                        title: "绝句",
+                        author: "杜甫",
+                        content: ["两个黄鹂鸣翠柳，", "一行白鹭上青天。", "窗含西岭千秋雪，", "门泊东吴万里船。"],
+                        pinyin: ["liǎng gè huáng lí míng cuì liǔ,", "yī háng bái lù shàng qīng tiān.", "chuāng hán xī lǐng qiān qiū xuě,", "mén bó dōng wú wàn lǐ chuán."]
+                    },
+                    {
+                        id: "poem_022",
+                        title: "春夜喜雨",
+                        author: "杜甫",
+                        content: ["好雨知时节，", "当春乃发生。", "随风潜入夜，", "润物细无声。"],
+                        pinyin: ["hǎo yǔ zhī shí jié,", "dāng chūn nǎi fā shēng.", "suí fēng qián rù yè,", "rùn wù xì wú shēng."]
+                    },
+                    {
+                        id: "poem_023",
+                        title: "绝句",
+                        author: "杜甫",
+                        content: ["迟日江山丽，", "春风花草香。", "泥融飞燕子，", "沙暖睡鸳鸯。"],
+                        pinyin: ["chí rì jiāng shān lì,", "chūn fēng huā cǎo xiāng.", "ní róng fēi yàn zi,", "shā nuǎn shuì yuān yāng."]
+                    },
+                    {
+                        id: "poem_024",
+                        title: "江畔独步寻花",
+                        author: "杜甫",
+                        content: ["黄四娘家花满蹊，", "千朵万朵压枝低。", "留连戏蝶时时舞，", "自在娇莺恰恰啼。"],
+                        pinyin: ["huáng sì niáng jiā huā mǎn xī,", "qiān duǒ wàn duǒ yā zhī dī.", "liú lián xì dié shí shí wǔ,", "zì zài jiāo yīng qià qià tí."]
+                    },
+                    {
+                        id: "poem_025",
+                        title: "枫桥夜泊",
+                        author: "张继",
+                        content: ["月落乌啼霜满天，", "江枫渔火对愁眠。", "姑苏城外寒山寺，", "夜半钟声到客船。"],
+                        pinyin: ["yuè luò wū tí shuāng mǎn tiān,", "jiāng fēng yú huǒ duì chóu mián.", "gū sū chéng wài hán shān sì,", "yè bàn zhōng shēng dào kè chuán."]
+                    },
+                    {
+                        id: "poem_026",
+                        title: "游子吟",
+                        author: "孟郊",
+                        content: ["慈母手中线，", "游子身上衣。", "临行密密缝，", "意恐迟迟归。", "谁言寸草心，", "报得三春晖。"],
+                        pinyin: ["cí mǔ shǒu zhōng xiàn,", "yóu zǐ shēn shàng yī.", "lín xíng mì mì féng,", "yì kǒng chí chí guī.", "shéi yán cùn cǎo xīn,", "bào dé sān chūn huī."]
+                    },
+                    {
+                        id: "poem_027",
+                        title: "江村即事",
+                        author: "司空曙",
+                        content: ["钓罢归来不系船，", "江村月落正堪眠。", "纵然一夜风吹去，", "只在芦花浅水边。"],
+                        pinyin: ["diào bà guī lái bù xì chuán,", "jiāng cūn yuè luò zhèng kān mián.", "zòng rán yī yè fēng chuī qù,", "zhǐ zài lú huā qiǎn shuǐ biān."]
+                    },
+                    {
+                        id: "poem_028",
+                        title: "题西林壁",
+                        author: "苏轼",
+                        content: ["横看成岭侧成峰，", "远近高低各不同。", "不识庐山真面目，", "只缘身在此山中。"],
+                        pinyin: ["héng kàn chéng lǐng cè chéng fēng,", "yuǎn jìn gāo dī gè bù tóng.", "bù shí lú shān zhēn miàn mù,", "zhī yuán shēn zài cǐ shān zhōng."]
+                    },
+                    {
+                        id: "poem_029",
+                        title: "夏日绝句",
+                        author: "李清照",
+                        content: ["生当作人杰，", "死亦为鬼雄。", "至今思项羽，", "不肯过江东。"],
+                        pinyin: ["shēng dāng zuò rén jié,", "sǐ yì wéi guǐ xióng.", "zhì jīn sī xiàng yǔ,", "bù kěn guò jiāng dōng."]
+                    },
+                    {
+                        id: "poem_030",
+                        title: "示儿",
+                        author: "陆游",
+                        content: ["死去元知万事空，", "但悲不见九州同。", "王师北定中原日，", "家祭无忘告乃翁。"],
+                        pinyin: ["sǐ qù yuán zhī wàn shì kōng,", "dàn bēi bú jiàn jiǔ zhōu tóng.", "wáng shī běi dìng zhōng yuán rì,", "jiā jì wú wàng gào nǎi wēng."]
+                    },
+                    {
+                        id: "poem_031",
+                        title: "晓出净慈寺送林子方",
+                        author: "杨万里",
+                        content: ["毕竟西湖六月中，", "风光不与四时同。", "接天莲叶无穷碧，", "映日荷花别样红。"],
+                        pinyin: ["bì jìng xī hú liù yuè zhōng,", "fēng guāng bù yǔ sì shí tóng.", "jiē tiān lián yè wú qióng bì,", "yìng rì hé huā bié yàng hóng."]
+                    },
+                    {
+                        id: "poem_032",
+                        title: "题都城南庄",
+                        author: "崔护",
+                        content: ["去年今日此门中，", "人面桃花相映红。", "人面不知何处去，", "桃花依旧笑春风。"],
+                        pinyin: ["qù nián jīn rì cǐ mén zhōng,", "rén miàn táo huā xiāng yìng hóng.", "rén miàn bù zhī hé chù qù,", "táo huā yī jiù xiào chūn fēng."]
+                    }
+                ]
+            },
+            english: {
+                name: "英语",
+                icon: "🔤",
+                items: [
+                    {
+                        id: "eng_001",
+                        title: "Hello Song",
+                        content: ["Hello, hello, how are you?", "I'm fine, thank you.", "And you? And you?", "Hello, hello, how are you?"]
+                    },
+                    {
+                        id: "eng_002",
+                        title: "Good Morning Song",
+                        content: ["Good morning, good morning!", "It's time to start our day.", "Good morning, good morning!", "Happy, happy day!"]
+                    },
+                    {
+                        id: "eng_003",
+                        title: "Goodbye Song",
+                        content: ["Goodbye, goodbye, see you again.", "Goodbye, goodbye, my friends.", "Goodbye, goodbye, wave your hand.", "See you tomorrow, see you then!"]
+                    },
+                    {
+                        id: "eng_004",
+                        title: "ABC Song",
+                        content: ["A B C D E F G,", "H I J K L M N O P,", "Q R S and T U V,", "W X Y and Z."]
+                    },
+                    {
+                        id: "eng_005",
+                        title: "Twinkle Twinkle Little Star",
+                        content: ["Twinkle, twinkle, little star,", "How I wonder what you are!", "Up above the world so high,", "Like a diamond in the sky."]
+                    },
+                    {
+                        id: "eng_006",
+                        title: "Color Song",
+                        content: ["Red, red, I like red.", "Yellow, yellow, I like yellow.", "Blue, blue, I like blue.", "Green, green, I like green."]
+                    },
+                    {
+                        id: "eng_007",
+                        title: "Number Song",
+                        content: ["One, two, three, four, five,", "Once I caught a fish alive.", "Six, seven, eight, nine, ten,", "Then I let it go again."]
+                    },
+                    {
+                        id: "eng_008",
+                        title: "Family Song",
+                        content: ["Father, mother, brother, sister,", "Love my family, love my family.", "Grandma, grandpa, uncle, aunt,", "Love my family, love them all."]
+                    },
+                    {
+                        id: "eng_009",
+                        title: "Body Parts Song",
+                        content: ["Head, shoulders, knees and toes,", "Knees and toes, knees and toes.", "Head, shoulders, knees and toes,", "Eyes and ears and mouth and nose."]
+                    },
+                    {
+                        id: "eng_010",
+                        title: "Days of the Week",
+                        content: ["Monday, Tuesday, Wednesday,", "Thursday, Friday, Saturday,", "Sunday, Sunday, that's a week.", "Seven days, seven days, don't you see?"]
+                    },
+                    {
+                        id: "eng_011",
+                        title: "Weather Song",
+                        content: ["Sunny, sunny, it's sunny day.", "Rainy, rainy, it's rainy day.", "Cloudy, cloudy, it's cloudy day.", "Windy, windy, it's windy day."]
+                    },
+                    {
+                        id: "eng_012",
+                        title: "Fruit Song",
+                        content: ["Apple, banana, orange, pear,", "I like fruit, I like fruit.", "Grape, watermelon, strawberry,", "Yummy, yummy, fruit for me!"]
+                    },
+                    {
+                        id: "eng_013",
+                        title: "Animal Song",
+                        content: ["Dog, cat, bird and fish,", "Rabbit, hamster, what you wish.", "Elephant, tiger, lion too,", "I love animals, yes I do!"]
+                    },
+                    {
+                        id: "eng_014",
+                        title: "Daily Greetings",
+                        content: ["Good morning! Good afternoon!", "Good evening! Good night!", "How are you? I'm fine, thank you.", "Nice to meet you! Nice to meet you too!"]
+                    },
+                    {
+                        id: "eng_015",
+                        title: " Classroom English",
+                        content: ["Stand up! Sit down!", "Open your book! Close your book!", "Look at me! Listen to me!", "Let's sing! Let's play!"]
+                    },
+                    {
+                        id: "eng_016",
+                        title: "Count to 20",
+                        content: ["One, two, three, four, five,", "Six, seven, eight, nine, ten.", "Eleven, twelve, thirteen, fourteen,", "Fifteen, sixteen, seventeen,", "Eighteen, nineteen, twenty!"]
+                    },
+                    {
+                        id: "eng_017",
+                        title: "My Face",
+                        content: ["I have two eyes.", "I have two ears.", "I have one nose.", "I have one mouth.", "This is my face."]
+                    },
+                    {
+                        id: "eng_018",
+                        title: "I Can",
+                        content: ["I can run, I can run.", "I can jump, I can jump.", "I can swim, I can swim.", "I can dance, I can dance."]
+                    },
+                    {
+                        id: "eng_019",
+                        title: "Do You Like...?",
+                        content: ["Do you like apples?", "Yes, I do. Yes, I do.", "Do you like bananas?", "No, I don't. No, I don't."]
+                    },
+                    {
+                        id: "eng_020",
+                        title: "What's This?",
+                        content: ["What's this? What's this?", "It's a pencil. It's a pencil.", "What's that? What's that?", "It's a book. It's a book."]
+                    },
+                    {
+                        id: "eng_021",
+                        title: "Happy Birthday",
+                        content: ["Happy birthday to you,", "Happy birthday to you,", "Happy birthday to you,", "Happy birthday to you!"]
+                    },
+                    {
+                        id: "eng_022",
+                        title: "Bingo",
+                        content: ["There was a farmer had a dog,", "and Bingo was his name-o.", "B-I-N-G-O, B-I-N-G-O,", "and Bingo was his name-o!"]
+                    },
+                    {
+                        id: "eng_023",
+                        title: "London Bridge",
+                        content: ["London Bridge is falling down,", "falling down, falling down.", "London Bridge is falling down,", "my fair lady."]
+                    },
+                    {
+                        id: "eng_024",
+                        title: "Row Row Row Your Boat",
+                        content: ["Row, row, row your boat,", "gently down the stream.", "Merrily, merrily, merrily, merrily,", "life is but a dream."]
+                    },
+                    {
+                        id: "eng_025",
+                        title: "The Wheels on the Bus",
+                        content: ["The wheels on the bus go round and round,", "round and round, round and round.", "The wheels on the bus go round and round,", "all through the town."]
+                    }
+                ]
+            },
+            pinyin: {
+                name: "拼音",
+                icon: "🔡",
+                items: [
+                    {
+                        id: "py_001",
+                        title: "单韵母",
+                        content: ["a o e i u ü"],
+                        description: "张大嘴巴 a a a，圆圆嘴巴 o o o，扁扁嘴巴 e e e，牙齿对齐 i i i，嘴巴突出 u u u，像吹笛子 ü ü ü",
+                        readText: "单韵母。阿，喔，鹅，衣，乌，迂。张大嘴巴阿阿阿，圆圆嘴巴喔喔喔，扁扁嘴巴鹅鹅鹅，牙齿对齐衣衣衣，嘴巴突出乌乌乌，像吹笛子迂迂迂"
+                    },
+                    {
+                        id: "py_002",
+                        title: "声母（唇音）",
+                        content: ["b p m f"],
+                        description: "右下半圆 b b b，右上半圆 p p p，两个门洞 m m m，一根拐杖 f f f",
+                        readText: "声母唇音。玻，坡，摸，佛。右下半圆玻玻玻，右上半圆坡坡坡，两个门洞摸摸摸，一根拐杖佛佛佛"
+                    },
+                    {
+                        id: "py_003",
+                        title: "声母（舌尖音）",
+                        content: ["d t n l"],
+                        description: "小马踢 d d d，雨伞把 t t t，一个门洞 n n n，一根棍子 l l l",
+                        readText: "声母舌尖音。得，特，讷，勒。小马踢得得得，雨伞把特特特，一个门洞讷讷讷，一根棍子勒勒勒"
+                    },
+                    {
+                        id: "py_004",
+                        title: "声母（舌根音）",
+                        content: ["g k h"],
+                        description: "9字加弯 g g g，机枪向上 k k k，椅子 h h h",
+                        readText: "声母舌根音。哥，科，喝。9字加弯哥哥哥，机枪向上科科科，椅子喝喝喝"
+                    },
+                    {
+                        id: "py_005",
+                        title: "声母（舌面音）",
+                        content: ["j q x"],
+                        description: "竖弯加点 j j j，左上半圆 q q q，一个大叉 x x x",
+                        readText: "声母舌面音。基，欺，希。竖弯加点基基基，左上半圆欺欺欺，一个大叉希希希"
+                    },
+                    {
+                        id: "py_006",
+                        title: "声母（平舌音）",
+                        content: ["z c s"],
+                        description: "像个2字 z z z，半个圆圈 c c c，半个8字 s s s",
+                        readText: "声母平舌音。资，疵，思。像个2字资资资，半个圆圈疵疵疵，半个8字思思思"
+                    },
+                    {
+                        id: "py_007",
+                        title: "声母（翘舌音）",
+                        content: ["zh ch sh r"],
+                        description: "z加h zh zh zh，c加h ch ch ch，s加h sh sh sh，小苗发芽 r r r",
+                        readText: "声母翘舌音。知，吃，诗，日。资加哈知知知，疵加哈吃吃吃，思加哈诗诗诗，小苗发芽日日日"
+                    },
+                    {
+                        id: "py_008",
+                        title: "整体认读音节（一）",
+                        content: ["zhi chi shi ri"],
+                        description: "知 吃 十 日，要读整体认读音节",
+                        readText: "整体认读音节。知，吃，诗，日。知吃十日，要读整体认读音节"
+                    },
+                    {
+                        id: "py_009",
+                        title: "整体认读音节（二）",
+                        content: ["zi ci si"],
+                        description: "字 词 四，要读整体认读音节",
+                        readText: "整体认读音节。资，疵，思。资疵思，要读整体认读音节"
+                    },
+                    {
+                        id: "py_010",
+                        title: "整体认读音节（三）",
+                        content: ["yi wu yu"],
+                        description: "衣 屋 鱼，要读整体认读音节",
+                        readText: "整体认读音节。衣，乌，迂。衣屋鱼，要读整体认读音节"
+                    },
+                    {
+                        id: "py_011",
+                        title: "复韵母",
+                        content: ["ai ei ui ao ou iu"],
+                        description: "a i 是 ai，e i 是 ei，u i 是 ui，a o 是 ao，o u 是 ou，i u 是 iu",
+                        readText: "复韵母。爱，诶，威，奥，欧，优。阿衣是爱，诶衣是诶，乌衣是威，阿喔是奥，喔乌是欧，衣乌是优"
+                    },
+                    {
+                        id: "py_012",
+                        title: "前鼻韵母",
+                        content: ["an en in un ün"],
+                        description: "a n 是 an，e n 是 en，i n 是 in，u n 是 un，ü n 是 ün",
+                        readText: "前鼻韵母。安，恩，因，温，晕。阿讷是安，诶讷是恩，衣讷是因，乌讷是温，迂讷是晕"
+                    },
+                    {
+                        id: "py_013",
+                        title: "后鼻韵母",
+                        content: ["ang eng ing ong"],
+                        description: "a ng 是 ang，e ng 是 eng，i ng 是 ing，o ng 是 ong",
+                        readText: "后鼻韵母。昂，亨，英，轰。阿格是昂，诶格是亨，衣格是英，喔格是轰"
+                    },
+                    {
+                        id: "py_014",
+                        title: "整体认读音节（四）",
+                        content: ["ye yue yuan yin yun ying"],
+                        description: "椰 月 驾 驶，音 晕 鹰，都是整体认读音节",
+                        readText: "整体认读音节。耶，约，冤，因，晕，英。椰约驾驶，音晕鹰，都是整体认读音节"
+                    },
+                    {
+                        id: "py_015",
+                        title: "声母综合练习",
+                        content: ["b p m f d t n l g k h j q x z c s zh ch sh r"],
+                        description: "按顺序念出所有声母，注意区分平舌音和翘舌音",
+                        readText: "声母综合练习。玻坡摸佛，得特讷勒，哥科喝，基欺希，资疵思，知吃诗日。按顺序念出所有声母，注意区分平舌音和翘舌音"
+                    },
+                    {
+                        id: "py_016",
+                        title: "韵母综合练习",
+                        content: ["a o e i u ü ai ei ui ao ou iu ie üe er an en in un ün ang eng ing ong"],
+                        description: "按顺序念出所有韵母，注意单韵母、复韵母、鼻韵母的区别",
+                        readText: "韵母综合练习。阿喔鹅衣乌迂，爱诶威奥欧优耶约儿安恩因温晕昂亨英轰。按顺序念出所有韵母，注意单韵母、复韵母、鼻韵母的区别"
+                    },
+                    {
+                        id: "py_017",
+                        title: "三拼音节练习",
+                        content: ["gua kua hua jia qia xia"],
+                        description: "声轻介快韵母响，三音连读很顺当。如：guā(g-u-a)",
+                        readText: "三拼音节练习。瓜，夸，花，家，恰，瞎。声轻介快韵母响，三音连读很顺当。例如：瓜"
+                    },
+                    {
+                        id: "py_018",
+                        title: "轻声练习",
+                        content: ["māma bàba gēge jiějie", "huāmen zhuōzi yizi"],
+                        description: "在词的后一个字读轻声，如：妈妈、爸爸、哥哥、姐姐",
+                        readText: "轻声练习。妈妈，爸爸，哥哥，姐姐。花们，桌子，椅子。在词的后一个字读轻声，例如妈妈爸爸哥哥姐姐"
+                    },
+                    {
+                        id: "py_019",
+                        title: "声调练习（一声）",
+                        content: ["mā bā tà lā huā gāo xiōng"],
+                        description: "一声也叫阴平，读起来高而平，如：妈、八、他、拉",
+                        readText: "声调练习一声。妈，八，塔，拉，花，哥，兄。一声也叫阴平，读起来高而平，例如妈八他拉"
+                    },
+                    {
+                        id: "py_020",
+                        title: "声调练习（二声）",
+                        content: ["má pá ná lá yá pái"],
+                        description: "二声也叫阳平，读起来由低到高，如：麻、爬、拿、拉",
+                        readText: "声调练习二声。麻，爬，拿，拉，牙，拍。二声也叫阳平，读起来由低到高，例如麻爬拿拉"
+                    },
+                    {
+                        id: "py_021",
+                        title: "声调练习（三声）",
+                        content: ["mǎ bǎ nǎ lǎ yǎ gǒu"],
+                        description: "三声也叫上声，读起来先降后升，如：马、把、哪、喇",
+                        readText: "声调练习三声。马，把，哪，喇，雅，狗。三声也叫上声，读起来先降后升，例如马把哪喇"
+                    },
+                    {
+                        id: "py_022",
+                        title: "声调练习（四声）",
+                        content: ["mà bà nà là yà dì"],
+                        description: "四声也叫去声，读起来从高到低，如：骂、爸、那、辣",
+                        readText: "声调练习四声。骂，爸，那，辣，亚，弟。四声也叫去声，读起来从高到低，例如骂爸那辣"
+                    },
+                    {
+                        id: "py_023",
+                        title: "整体认读音节综合",
+                        content: ["zhi chi shi ri zi ci si", "yi wu yu ye yue yuan", "yin yun ying"],
+                        description: "16个整体认读音节：zhi chi shi ri zi ci si yi wu yu ye yue yuan yin yun ying",
+                        readText: "整体认读音节综合。知吃诗日，资疵思，衣乌迂耶约冤，因晕英。16个整体认读音节：知吃诗日资疵思衣乌迂耶约冤因晕英"
+                    },
+                    {
+                        id: "py_024",
+                        title: "标调歌",
+                        content: ["a o e i u ü", "有a不放过，没a找o e", "i u并列标在后"],
+                        description: "标调口诀：有a先标a，没a找o e，i u并列标在后",
+                        readText: "标调歌。阿喔鹅衣乌迂。有阿不放过，没阿找喔鹅。衣乌并列标在后。标调口诀：有阿先标阿，没阿找喔鹅，衣乌并列标在后"
+                    }
+                ]
+            },
+            texts: {
+                name: "课文",
+                icon: "📖",
+                items: [
+                    {
+                        id: "txt_001",
+                        title: "秋天",
+                        content: ["天气凉了，树叶黄了，", "一片片叶子从树上落下来。", "天空那么蓝，那么高。", "一群大雁往南飞，", "一会儿排成个人字，", "一会儿排成个一字。", "啊！秋天来了！"]
+                    },
+                    {
+                        id: "txt_002",
+                        title: "小小的船",
+                        content: ["弯弯的月儿小小的船，", "小小的船儿两头尖。", "我在小小的船里坐，", "只看见闪闪的星星蓝蓝的天。"]
+                    },
+                    {
+                        id: "txt_003",
+                        title: "四季",
+                        content: ["草芽尖尖，他对小鸟说：", "我是春天。", "荷叶圆圆，他对青蛙说：", "我是夏天。", "谷穗弯弯，他鞠着躬说：", "我是秋天。", "雪人大肚子一挺，", "他顽皮地说：", "我就是冬天。"]
+                    },
+                    {
+                        id: "txt_004",
+                        title: "画",
+                        content: ["远看山有色，", "近听水无声。", "春去花还在，", "人来鸟不惊。"]
+                    },
+                    {
+                        id: "txt_005",
+                        title: "大小多少",
+                        content: ["一个大，一个小，", "一头黄牛一只猫。", "一边多，一边少，", "一群鸭子一只鸟。", "一个大，一个小，", "一个苹果一颗枣。", "一边多，一边少，", "一堆杏子一个桃。"]
+                    },
+                    {
+                        id: "txt_006",
+                        title: "小书包",
+                        content: ["我的小书包，宝贝真不少。", "课本作业本，铅笔转笔刀。", "上课静悄悄，下课不乱跑。", "天天起得早，去上小学校。"]
+                    },
+                    {
+                        id: "txt_007",
+                        title: "日月明",
+                        content: ["日月明，田力男。", "小大尖，小土尘。", "二人从，三人众。", "双木林，三木森。", "一不成，众木森。"]
+                    },
+                    {
+                        id: "txt_008",
+                        title: "升国旗",
+                        content: ["五星红旗，我们的国旗。", "国歌声中，徐徐升起。", "迎风飘扬，多么美丽。", "向着国旗，我们立正。", "望着国旗，我们敬礼。"]
+                    },
+                    {
+                        id: "txt_009",
+                        title: "悯农",
+                        content: ["春种一粒粟，", "秋收万颗子。", "四海无闲田，", "农夫犹饿死。"]
+                    },
+                    {
+                        id: "txt_010",
+                        title: "咏鹅",
+                        content: ["鹅鹅鹅，", "曲项向天歌。", "白毛浮绿水，", "红掌拨清波。"]
+                    },
+                    {
+                        id: "txt_011",
+                        title: "秋天来了",
+                        content: ["秋天来了，小草从地下探出头来，", "那是春天的眉毛吧？", "早开的野花一朵两朵，", "那是春天的眼睛吧？", "树木吐出点点嫩芽，", "那是春天的音符吧？", "解冻的小溪丁丁冬冬，", "那是春天的琴声吧？"]
+                    },
+                    {
+                        id: "txt_012",
+                        title: "小雨点",
+                        content: ["小雨点在沙沙地下，", "它在和树叶说话，", "沙沙沙，沙沙沙。", "它在和花草说话，", "沙沙沙，沙沙沙。", "它在和小朋友说话，", "沙沙沙，沙沙沙。"]
+                    },
+                    {
+                        id: "txt_013",
+                        title: "秋天的图画",
+                        content: ["秋天来啦，秋天来啦，", "山野就是美丽的图画。", "梨树挂起金黄的灯笼，", "苹果露出红红的脸颊。", "稻海翻起金色的波浪，", "高粱举起燃烧的火把。", "谁使秋天这样美丽？", "看，蓝天的大雁作出了回答，", "它们排成一个大大的'人'字，", "好像在说——勤劳的人们画出秋天的图画。"]
+                    },
+                    {
+                        id: "txt_014",
+                        title: "植物妈妈有办法",
+                        content: ["孩子如果已经长大，", "就得告别妈妈，四海为家。", "牛马有脚，鸟有翅膀，", "植物旅行又用什么办法？", "蒲公英妈妈准备了降落伞，", "把它送给自己的娃娃。", "只要有风轻轻吹过，", "孩子们就乘着风纷纷出发。", "苍耳妈妈有个好办法，", "她给孩子穿上带刺的铠甲。", "只要挂住动物的皮毛，", "孩子们就能去田野、山洼。", "豌豆妈妈更有办法，", "她让豆荚晒在太阳底下。", "啪的一声，豆荚炸开，", "孩子们就蹦着跳着离开妈妈。", "植物妈妈的办法很多很多，", "不信你就仔细观察。", "那里有许许多多的知识，", "粗心的小朋友却得不到它。"]
+                    },
+                    {
+                        id: "txt_015",
+                        title: "梅花",
+                        content: ["墙角数枝梅，", "凌寒独自开。", "遥知不是雪，", "为有暗香来。"]
+                    },
+                    {
+                        id: "txt_016",
+                        title: "找春天",
+                        content: ["春天来了！我们看到了她，我们听到了她，我们闻到了她，我们触到了她。", "她在柳枝上荡秋千，在风筝尾巴上摇啊摇；她在喜鹊、杜鹃嘴里叫，在桃花、杏花枝头笑……"]
+                    },
+                    {
+                        id: "txt_017",
+                        title: "开满鲜花的小路",
+                        content: ["邮递员黄狗在门口喊：", "鼹鼠先生，你的包裹单！", "原来，长颈鹿大叔给鼹鼠先生寄来了一个包裹。", "鼹鼠先生骑着摩托车，到邮局去领包裹。", "他回家后打开包裹一看，", "里面的小颗粒很小，", "鼹鼠先生瞧了瞧，", "不知道是什么东西。", "于是，他骑着摩托车去问松鼠太太。", "松鼠太太看了看，说：", "我知道了，这是花籽。", "鼹鼠先生来到邮局，", "问邮递员黄狗：", "花籽是长颈鹿大叔寄来的吗？", "邮递员黄狗说：", "是的。", "鼹鼠先生拿着花籽回家了。", "他把花籽撒在去松鼠太太家的路上。", "春天来了，鼹鼠先生去松鼠太太家。", "他看见路上开着绚丽多彩的鲜花。", "松鼠太太说：", "我知道了，这是花籽。"]
+                    },
+                    {
+                        id: "txt_018",
+                        title: "小蝌蚪找妈妈",
+                        content: ["池塘里有一群小蝌蚪，大大的脑袋，黑灰色的身子，甩着长长的尾巴，快活地游来游去。", "小蝌蚪游哇游，过了几天，长出了两条后腿。", "他们看见鲤鱼妈妈在教小鲤鱼捕食，就迎上去，问：", "鲤鱼阿姨，我们的妈妈在哪里？", "鲤鱼妈妈说：", "你们的妈妈四条腿，宽嘴巴。", "你们到那边去找吧！"]
+                    },
+                    {
+                        id: "txt_019",
+                        title: "我是什么",
+                        content: ["我会变。太阳一晒，我就变成汽。", "升到天空，我又变成无数极小极小的点儿，连成一片，在空中飘浮。", "有时候我穿着白衣服，有时候我穿着黑衣服，早晨和傍晚我又把红袍披在身上。", "人们管我叫'云'。", "我在空中越升越高，体温越来越低，变成了无数小水滴。", "小水滴聚在一起落下来，人们管我叫'雨'。", "有时候我变成小硬球打下来，人们就管我叫'雹子'。", "到了冬天，我变成小花朵飘下来，人们又管我叫'雪'。"]
+                    },
+                    {
+                        id: "txt_020",
+                        title: "植物妈妈有办法",
+                        content: ["孩子如果已经长大，", "就得告别妈妈，四海为家。", "牛马有脚，鸟有翅膀，", "植物要旅行靠的什么办法？", "蒲公英妈妈准备了降落伞，", "把它送给自己的娃娃。", "只要有风轻轻吹过，", "孩子们就乘着风纷纷出发。", "苍耳妈妈有个好办法，", "她给孩子穿上带刺的铠甲。", "只要挂住动物的皮毛，", "孩子们就能去田野、山洼。", "豌豆妈妈更有办法，", "她让豆荚晒在太阳底下。", "啪的一声，豆荚炸开，", "孩子们就蹦着跳着离开妈妈。"]
+                    },
+                    {
+                        id: "txt_021",
+                        title: "场景歌",
+                        content: ["一只海鸥，一片沙滩。", "一艘军舰，一条帆船。", "一方鱼塘，一块稻田。", "一行垂柳，一座花园。", "一道小溪，一孔石桥。", "一丛翠竹，一群飞鸟。", "一面队旗，一把铜号。", "一群'红领巾'，一片欢笑。"]
+                    },
+                    {
+                        id: "txt_022",
+                        title: "树之歌",
+                        content: ["杨树高，榕树壮，", "梧桐树叶像手掌。", "枫树秋天叶儿红，", "松柏四季披绿装。", "木棉喜暖在南方，", "桦树耐寒守北疆。", "银杏水杉活化石，", "金桂开花满院香。"]
+                    },
+                    {
+                        id: "txt_023",
+                        title: "拍手歌",
+                        content: ["你拍一，我拍一，动物世界很新奇。", "你拍二，我拍二，孔雀锦鸡是伙伴。", "你拍三，我拍三，雄鹰飞翔云彩间。", "你拍四，我拍四，天空雁群会写字。", "你拍五，我拍五，丛林深处有猛虎。", "你拍六，我拍六，黄鹂百灵唱不休。", "你拍七，我拍七，竹林熊猫在嬉戏。", "你拍八，我拍八，大小动物都有家。", "你拍九，我拍九，人和动物是朋友。", "你拍十，我拍十，保护动物是大事。"]
+                    },
+                    {
+                        id: "txt_024",
+                        title: "田家四季歌",
+                        content: ["春季里，春风吹，花开草长蝴蝶飞。", "麦苗儿多嫩，桑叶儿正肥。", "夏季里，农事忙，采了蚕桑又插秧。", "早起勤耕作，归来月光亮。", "秋季里，稻上场，谷像黄金粒粒香。", "身体虽辛苦，心里喜洋洋。", "冬季里，雪初晴，新制棉衣暖又轻。", "一年农事了，大家笑盈盈。"]
+                    },
+                    {
+                        id: "txt_025",
+                        title: "曹冲称象",
+                        content: ["古时候有个叫曹操的人，别人送他一头大象。", "这头大象又高又大，身子像堵墙，腿像四根柱子。", "官员们一边看一边议论：", "象这么大，到底有多重呢？", "曹操问：", "谁有办法把这头大象称一称？", "有的说：", "得造一杆大秤，砍一棵大树做秤杆。", "有的说：", "有了大秤也不成啊，谁有那么大的力气提得起这杆大秤呢？", "曹操的儿子曹冲才七岁，他站出来，说：", "我有个办法。", "把大象赶到一艘大船上，看船身下沉多少，就沿着水面，在船舷上画一条线。", "再把大象赶上岸，往船上装石头，装到船下沉到画线的地方为止。", "称一称石头的重量，就知道大象有多重了。"]
+                    }
+                ]
+            }
+        };
+
+        // 朗读内容状态
+        let contentState = {
+            category: 'poems',
+            itemIndex: 0,
+            showPinyin: false
+        };
+
+        // 自定义内容存储
+        let customContents = {
+            poems: [],
+            english: [],
+            pinyin: [],
+            texts: []
+        };
+
+        // 上传模态框状态
+        let uploadModalState = {
+            currentTab: 'file'
+        };
+
+        // 朗读内容 DOM 元素
+        const contentPanel = document.getElementById('contentPanel');
+        const contentTabs = document.getElementById('contentTabs');
+        const contentTitle = document.getElementById('contentTitle');
+        const contentAuthor = document.getElementById('contentAuthor');
+        const pinyinText = document.getElementById('pinyinText');
+        const contentBody = document.getElementById('contentBody');
+        const contentIndex = document.getElementById('contentIndex');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const randomBtn = document.getElementById('randomBtn');
+        const pinyinBtn = document.getElementById('pinyinBtn');
+        const readBtn = document.getElementById('readBtn');
+        const nextAnimalPreview = document.getElementById('nextAnimalPreview');
+
+        // 语音合成相关变量
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        let isReading = false;
+
+        // 获取中文语音
+        function getChineseVoice() {
+            const voices = speechSynthesis.getVoices();
+            // 优先选择中文语音
+            let chineseVoice = voices.find(voice => voice.lang.includes('zh'));
+            // 如果没有中文，尝试其他方式
+            if (!chineseVoice) {
+                chineseVoice = voices.find(voice => voice.lang === 'zh-CN' || voice.lang === 'zh-CN');
+            }
+            return chineseVoice || null;
+        }
+
+        // 获取英文语音
+        function getEnglishVoice() {
+            const voices = speechSynthesis.getVoices();
+            // 优先选择美式英语
+            let englishVoice = voices.find(voice => voice.lang === 'en-US');
+            // 如果没有美式英语，尝试英式英语
+            if (!englishVoice) {
+                englishVoice = voices.find(voice => voice.lang === 'en-GB');
+            }
+            // 如果都没有，尝试任何英语语音
+            if (!englishVoice) {
+                englishVoice = voices.find(voice => voice.lang.includes('en'));
+            }
+            return englishVoice || null;
+        }
+
+        // 拼音对应的汉字映射（用于正确朗读拼音）
+        const PINYIN_TO_HANZI = {
+            'a': '阿', 'o': '喔', 'e': '鹅', 'i': '衣', 'u': '乌', 'ü': '迂',
+            'ai': '爱', 'ei': '诶', 'ui': '威', 'ao': '奥', 'ou': '欧', 'iu': '优',
+            'ie': '耶', 'üe': '约', 'er': '儿',
+            'an': '安', 'en': '恩', 'in': '因', 'un': '温', 'ün': '晕',
+            'ang': '昂', 'eng': '亨', 'ing': '英', 'ong': '轰',
+            'b': '玻', 'p': '坡', 'm': '摸', 'f': '佛',
+            'd': '得', 't': '特', 'n': '讷', 'l': '勒',
+            'g': '哥', 'k': '科', 'h': '喝',
+            'j': '基', 'q': '欺', 'x': '希',
+            'zh': '知', 'ch': '吃', 'sh': '诗', 'r': '日',
+            'z': '资', 'c': '疵', 's': '思',
+            'yi': '衣', 'wu': '乌', 'yu': '迂',
+            'ye': '耶', 'yue': '约', 'yuan': '冤', 'yin': '因', 'yun': '晕', 'ying': '英'
+        };
+
+        // 将拼音转换为可朗读的格式（只保留汉字，不读字母）
+        function convertPinyinToReadable(pinyinText) {
+            let result = pinyinText;
+
+            // 按照从长到短的顺序替换，确保复合韵母优先
+            const sortedKeys = Object.keys(PINYIN_TO_HANZI).sort((a, b) => b.length - a.length);
+
+            sortedKeys.forEach(key => {
+                const regex = new RegExp(key, 'g');
+                result = result.replace(regex, PINYIN_TO_HANZI[key]);
+            });
+
+            return result;
+        }
+
+        // 朗读当前内容
+        function readCurrentContent() {
+            // 如果正在朗读，则停止
+            if (isReading) {
+                stopReading();
+                return;
+            }
+
+            const merged = getCurrentContents();
+            const category = merged[contentState.category];
+            const item = category.items[contentState.itemIndex];
+
+            if (!item) return;
+
+            // 构建要朗读的文本
+            let textToRead = '';
+
+            if (contentState.category === 'english') {
+                // 英语内容
+                textToRead = item.title + '. ' + item.content.join(' ');
+            } else if (contentState.category === 'pinyin') {
+                // 拼音内容：优先使用专门的朗读文本
+                if (item.readText) {
+                    textToRead = item.readText;
+                } else {
+                    // 如果没有readText，使用转换后的拼音
+                    const pinyinContent = item.content.join(' ');
+                    const convertedPinyin = convertPinyinToReadable(pinyinContent);
+                    textToRead = item.title + '。' + convertedPinyin + '。';
+                    if (item.description) {
+                        textToRead += item.description;
+                    }
+                }
+            } else {
+                // 古诗和课文
+                if (item.author) {
+                    textToRead = item.title + '，' + item.author + '。' + item.content.join('');
+                } else {
+                    textToRead = item.title + '。' + item.content.join('');
+                }
+            }
+
+            // 创建语音合成实例
+            currentUtterance = new SpeechSynthesisUtterance(textToRead);
+
+            // 根据分类设置语音和参数
+            if (contentState.category === 'english') {
+                const voice = getEnglishVoice();
+                if (voice) {
+                    currentUtterance.voice = voice;
+                }
+                currentUtterance.lang = 'en-US';
+                currentUtterance.rate = 0.9; // 英语语速稍慢
+                currentUtterance.pitch = 1.0;
+            } else {
+                // 中文内容（包括拼音）
+                const voice = getChineseVoice();
+                if (voice) {
+                    currentUtterance.voice = voice;
+                }
+                currentUtterance.lang = 'zh-CN';
+                // 古诗读慢一点，拼音和课文正常速度
+                if (contentState.category === 'poems') {
+                    currentUtterance.rate = 0.75;
+                } else if (contentState.category === 'pinyin') {
+                    currentUtterance.rate = 0.7; // 拼音读得更慢，便于听清
+                } else {
+                    currentUtterance.rate = 0.85;
+                }
+                currentUtterance.pitch = 1.0;
+            }
+
+            // 事件处理
+            currentUtterance.onstart = function() {
+                isReading = true;
+                readBtn.classList.add('reading');
+                readBtn.textContent = '⏹';
+                // 朗读时自动暂停音量检测
+                isPaused = true;
+                pauseButton.textContent = '▶️';
+                pauseButton.classList.add('paused');
+            };
+
+            currentUtterance.onend = function() {
+                isReading = false;
+                readBtn.classList.remove('reading');
+                readBtn.textContent = '🔊';
+                currentUtterance = null;
+                // 朗读结束后自动恢复音量检测
+                isPaused = false;
+                pauseButton.textContent = '⏸';
+                pauseButton.classList.remove('paused');
+            };
+
+            currentUtterance.onerror = function(event) {
+                console.error('Speech synthesis error:', event.error);
+                isReading = false;
+                readBtn.classList.remove('reading');
+                readBtn.textContent = '🔊';
+                currentUtterance = null;
+
+                // 如果是被取消或中断，不显示错误提示，但恢复音量检测
+                if (event.error !== 'canceled' && event.error !== 'interrupted') {
+                    alert('朗读功能出错，请稍后重试');
+                }
+                // 错误时也恢复音量检测
+                isPaused = false;
+                pauseButton.textContent = '⏸';
+                pauseButton.classList.remove('paused');
+            };
+
+            // 开始朗读
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // 停止朗读
+        function stopReading() {
+            if (speechSynthesis.speaking || speechSynthesis.pending) {
+                speechSynthesis.cancel();
+            }
+            isReading = false;
+            readBtn.classList.remove('reading');
+            readBtn.textContent = '🔊';
+            currentUtterance = null;
+            // 手动停止朗读后，恢复音量检测
+            isPaused = false;
+            pauseButton.textContent = '⏸';
+            pauseButton.classList.remove('paused');
+        }
+
+        // 切换内容时停止朗读
+        const originalStopReading = stopReading;
+        stopReading = function() {
+            if (isReading) {
+                speechSynthesis.cancel();
+            }
+            isReading = false;
+            readBtn.classList.remove('reading');
+            readBtn.textContent = '🔊';
+            currentUtterance = null;
+            // 恢复音量检测
+            isPaused = false;
+            pauseButton.textContent = '⏸';
+            pauseButton.classList.remove('paused');
+        };
+
+        // 上传内容 DOM 元素
+        const uploadContentBtn = document.getElementById('uploadContentBtn');
+        const uploadModal = document.getElementById('uploadModal');
+        const fileInput = document.getElementById('fileInput');
+        const uploadCategorySelect = document.getElementById('uploadCategorySelect');
+        const manualCategorySelect = document.getElementById('manualCategorySelect');
+        const manualTitle = document.getElementById('manualTitle');
+        const manualAuthor = document.getElementById('manualAuthor');
+        const manualPinyin = document.getElementById('manualPinyin');
+        const manualContent = document.getElementById('manualContent');
+        const manualDescription = document.getElementById('manualDescription');
+        const cancelUploadButton = document.getElementById('cancelUploadButton');
+        const confirmUploadButton = document.getElementById('confirmUploadButton');
+        const manageContentModal = document.getElementById('manageContentModal');
+        const manageContentList = document.getElementById('manageContentList');
+        const closeManageButton = document.getElementById('closeManageButton');
+        const manageContentBtn = document.getElementById('manageContentBtn');
+
+        // 获取下一个即将生成的动物
+        function getNextAnimal() {
+            if (settings.selectedAnimals.length === 0) return '🐰';
+            return settings.selectedAnimals[Math.floor(Math.random() * settings.selectedAnimals.length)];
+        }
+
+        // 朗读内容功能
+        function renderContentTabs() {
+            contentTabs.innerHTML = '';
+            Object.keys(READING_CONTENTS).forEach(key => {
+                const category = READING_CONTENTS[key];
+                const tab = document.createElement('div');
+                tab.className = 'tab-item' + (contentState.category === key ? ' active' : '');
+                tab.textContent = category.icon + ' ' + category.name;
+                tab.addEventListener('click', () => switchCategory(key));
+                contentTabs.appendChild(tab);
+            });
+        }
+
+        function renderContent() {
+            const category = READING_CONTENTS[contentState.category];
+            const item = category.items[contentState.itemIndex];
+
+            contentTitle.textContent = item.title;
+            contentAuthor.textContent = item.author || '';
+            contentIndex.textContent = (contentState.itemIndex + 1) + '/' + category.items.length;
+
+            // 显示拼音（如果有）
+            if (item.pinyin && contentState.showPinyin) {
+                pinyinText.innerHTML = item.pinyin.map(p => `<div class="line">${p}</div>`).join('');
+                pinyinText.style.display = 'block';
+            } else {
+                pinyinText.style.display = 'none';
+            }
+
+            // 显示内容
+            if (item.description) {
+                contentBody.innerHTML = `<div class="line">${item.content.join('')}</div><div class="line" style="margin-top:15px;font-size:1.1rem;color:#666;">${item.description}</div>`;
+            } else {
+                contentBody.innerHTML = item.content.map(line => `<div class="line">${line}</div>`).join('');
+            }
+
+            // 拼音按钮只在古诗时显示
+            pinyinBtn.style.display = contentState.category === 'poems' ? 'flex' : 'none';
+            pinyinBtn.style.background = contentState.showPinyin ? '#667eea' : '#f0f0f0';
+            pinyinBtn.style.color = contentState.showPinyin ? 'white' : '#333';
+        }
+
+        function switchCategory(category) {
+            stopReading(); // 切换分类时停止朗读
+            contentState.category = category;
+            contentState.itemIndex = 0;
+            contentState.showPinyin = false;
+            renderContentTabs();
+            renderContent();
+            saveContentPreference();
+        }
+
+        function prevContent() {
+            stopReading(); // 切换内容时停止朗读
+            const category = READING_CONTENTS[contentState.category];
+            if (contentState.itemIndex > 0) {
+                contentState.itemIndex--;
+                renderContent();
+                saveContentPreference();
+            }
+        }
+
+        function nextContent() {
+            stopReading(); // 切换内容时停止朗读
+            const category = READING_CONTENTS[contentState.category];
+            if (contentState.itemIndex < category.items.length - 1) {
+                contentState.itemIndex++;
+                renderContent();
+                saveContentPreference();
+            }
+        }
+
+        function randomContent() {
+            stopReading(); // 随机切换时停止朗读
+            const category = READING_CONTENTS[contentState.category];
+            contentState.itemIndex = Math.floor(Math.random() * category.items.length);
+            renderContent();
+            saveContentPreference();
+        }
+
+        function togglePinyin() {
+            contentState.showPinyin = !contentState.showPinyin;
+            renderContent();
+            saveContentPreference();
+        }
+
+        // 移动端响应式处理
+        function handleResize() {
+            if (window.innerWidth <= 768) {
+                // 移动端：内容面板在上，动物园在下
+                contentPanel.style.maxHeight = '35vh';
+            } else {
+                // 桌面端：使用flex布局，清除行内样式
+                contentPanel.style.maxHeight = '';
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+
+        function saveContentPreference() {
+            localStorage.setItem('contentState', JSON.stringify({
+                category: contentState.category,
+                itemIndex: contentState.itemIndex,
+                showPinyin: contentState.showPinyin
+            }));
+        }
+
+        function loadContentPreference() {
+            const saved = localStorage.getItem('contentState');
+            if (saved) {
+                const savedState = JSON.parse(saved);
+                if (READING_CONTENTS[savedState.category]) {
+                    contentState.category = savedState.category;
+                    contentState.itemIndex = Math.min(savedState.itemIndex, READING_CONTENTS[savedState.category].items.length - 1);
+                    contentState.showPinyin = savedState.showPinyin || false;
+                }
+            }
+        }
+
+        // ===== 自定义内容功能 =====
+
+        // 加载自定义内容
+        function loadCustomContents() {
+            const saved = localStorage.getItem('customContents');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    customContents = {
+                        poems: parsed.poems || [],
+                        english: parsed.english || [],
+                        pinyin: parsed.pinyin || [],
+                        texts: parsed.texts || []
+                    };
+                } catch (e) {
+                    console.error('Failed to load custom contents:', e);
+                }
+            }
+        }
+
+        // 保存自定义内容
+        function saveCustomContents() {
+            localStorage.setItem('customContents', JSON.stringify(customContents));
+        }
+
+        // 合并自定义内容到预设内容
+        function mergeCustomContents() {
+            // 创建合并后的内容对象（不修改原始READING_CONTENTS）
+            const merged = {
+                poems: { ...READING_CONTENTS.poems, items: [...READING_CONTENTS.poems.items] },
+                english: { ...READING_CONTENTS.english, items: [...READING_CONTENTS.english.items] },
+                pinyin: { ...READING_CONTENTS.pinyin, items: [...READING_CONTENTS.pinyin.items] },
+                texts: { ...READING_CONTENTS.texts, items: [...READING_CONTENTS.texts.items] }
+            };
+
+            // 添加自定义内容
+            merged.poems.items = [...merged.poems.items, ...customContents.poems];
+            merged.english.items = [...merged.english.items, ...customContents.english];
+            merged.pinyin.items = [...merged.pinyin.items, ...customContents.pinyin];
+            merged.texts.items = [...merged.texts.items, ...customContents.texts];
+
+            return merged;
+        }
+
+        // 获取当前可用的内容（包含自定义）
+        function getCurrentContents() {
+            return mergeCustomContents();
+        }
+
+        // ===== 头像管理功能 =====
+
+        // 加载自定义头像
+        function loadCustomAvatars() {
+            const saved = localStorage.getItem('customAvatars');
+            if (saved) {
+                try {
+                    customAvatars = JSON.parse(saved);
+                } catch (e) {
+                    console.error('加载头像失败:', e);
+                    customAvatars = [];
+                }
+            }
+        }
+
+        // 保存自定义头像
+        function saveCustomAvatars() {
+            localStorage.setItem('customAvatars', JSON.stringify(customAvatars));
+        }
+
+        // 处理头像上传
+        avatarInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            // 限制总数量（最多20个）
+            const remainingSlots = Math.max(0, 20 - customAvatars.length);
+            const filesToProcess = Math.min(files.length, remainingSlots);
+
+            if (filesToProcess < files.length) {
+                alert('最多只能上传20个头像，当前只能添加' + filesToProcess + '个');
+            }
+
+            let processedCount = 0;
+
+            for (let i = 0; i < filesToProcess; i++) {
+                const file = files[i];
+
+                // 检查文件大小（限制500KB）
+                if (file.size > 500 * 1024) {
+                    alert('图片 ' + file.name + ' 太大了，请选择小于500KB的图片');
+                    continue;
+                }
+
+                // 读取并转换图片
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+
+                    // 压缩图片（通过canvas）
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const maxSize = 200; // 最大尺寸
+                        let width = img.width;
+                        let height = img.height;
+
+                        // 计算缩放比例
+                        if (width > height) {
+                            if (width > maxSize) {
+                                height *= maxSize / width;
+                                width = maxSize;
+                            }
+                        } else {
+                            if (height > maxSize) {
+                                width *= maxSize / height;
+                                height = maxSize;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // 转换为压缩后的data URL
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        customAvatars.push(compressedDataUrl);
+                        saveCustomAvatars();
+
+                        processedCount++;
+                        if (processedCount === filesToProcess || processedCount === remainingSlots) {
+                            alert('成功添加 ' + processedCount + ' 个头像！');
+                            avatarInput.value = ''; // 清空input
+                        }
+                    };
+                    img.src = dataUrl;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 显示管理头像模态框
+        function showManageAvatars() {
+            renderAvatarGrid();
+            manageAvatarsModal.classList.add('show');
+        }
+
+        // 渲染头像网格
+        function renderAvatarGrid() {
+            avatarGrid.innerHTML = '';
+
+            if (customAvatars.length === 0) {
+                avatarGrid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state-icon">📷</div>
+                        <p>还没有上传头像哦</p>
+                        <p>点击"上传头像"按钮添加照片吧！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            customAvatars.forEach((avatar, index) => {
+                const item = document.createElement('div');
+                item.className = 'avatar-item';
+                item.innerHTML = `
+                    <img src="${avatar}" alt="头像${index + 1}">
+                    <button class="delete-avatar" onclick="deleteAvatar(${index})" title="删除">🗑️</button>
+                `;
+                avatarGrid.appendChild(item);
+            });
+        }
+
+        // 删除头像
+        window.deleteAvatar = function(index) {
+            if (confirm('确定要删除这个头像吗？')) {
+                customAvatars.splice(index, 1);
+                saveCustomAvatars();
+                renderAvatarGrid();
+            }
+        };
+
+        // 获取下一个随机元素（包含emoji动物和自定义头像）
+        function getNextRandomElement() {
+            // 合并所有可用的选项
+            const emojiAnimals = settings.selectedAnimals.length > 0 ? settings.selectedAnimals : ALL_ANIMALS;
+            const allOptions = [...emojiAnimals, ...customAvatars];
+
+            if (allOptions.length === 0) return '🐰';
+
+            const randomIndex = Math.floor(Math.random() * allOptions.length);
+            return allOptions[randomIndex];
+        }
+
+        // 修改原有的getNextAnimal函数
+        const originalGetNextAnimal = function() {
+            if (settings.selectedAnimals.length === 0) return '🐰';
+            return settings.selectedAnimals[Math.floor(Math.random() * settings.selectedAnimals.length)];
+        };
+
+        // 替换为新的函数
+        function getNextAnimal() {
+            return getNextRandomElement();
+        }
+
+        // 更新预览显示（支持emoji和图片）
+        function updatePreviewDisplay(animal) {
+            if (animal.startsWith('data:')) {
+                // 是图片
+                nextAnimalPreview.innerHTML = `<img src="${animal}" style="width: 2.5rem; height: 2.5rem; object-fit: contain; border-radius: 8px;">`;
+            } else {
+                // 是emoji
+                nextAnimalPreview.textContent = animal;
+            }
+        }
+
+        // 检查是否为图片
+        function isImage(element) {
+            return element.startsWith('data:');
+        }
+
+        // 打开上传模态框
+        function openUploadModal() {
+            uploadModal.classList.add('show');
+            uploadModalState.currentTab = 'file';
+            updateUploadTabUI();
+        }
+
+        // 关闭上传模态框
+        function closeUploadModal() {
+            uploadModal.classList.remove('show');
+            clearUploadForms();
+        }
+
+        // 更新上传标签页UI
+        function updateUploadTabUI() {
+            document.querySelectorAll('.upload-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === uploadModalState.currentTab);
+            });
+
+            const fileContent = document.getElementById('fileUploadContent');
+            const manualContent = document.getElementById('manualInputContent');
+
+            if (uploadModalState.currentTab === 'file') {
+                fileContent.style.display = 'block';
+                manualContent.style.display = 'none';
+            } else {
+                fileContent.style.display = 'none';
+                manualContent.style.display = 'block';
+            }
+
+            // 根据分类调整表单显示
+            updateFormByCategory();
+        }
+
+        // 根据分类更新表单
+        function updateFormByCategory() {
+            const category = uploadModalState.currentTab === 'file'
+                ? uploadCategorySelect.value
+                : manualCategorySelect.value;
+
+            const authorGroup = document.getElementById('authorGroup');
+            const pinyinGroup = document.getElementById('pinyinGroup');
+            const descriptionGroup = document.getElementById('descriptionGroup');
+
+            // 古诗：显示作者和拼音
+            if (category === 'poems') {
+                authorGroup.style.display = 'block';
+                pinyinGroup.style.display = 'block';
+                descriptionGroup.style.display = 'none';
+            }
+            // 拼音和课文：显示说明
+            else if (category === 'pinyin' || category === 'texts') {
+                authorGroup.style.display = 'none';
+                pinyinGroup.style.display = 'none';
+                descriptionGroup.style.display = 'block';
+            }
+            // 英语：不显示额外字段
+            else {
+                authorGroup.style.display = 'none';
+                pinyinGroup.style.display = 'none';
+                descriptionGroup.style.display = 'none';
+            }
+        }
+
+        // 清空上传表单
+        function clearUploadForms() {
+            fileInput.value = '';
+            manualTitle.value = '';
+            manualAuthor.value = '';
+            manualPinyin.value = '';
+            manualContent.value = '';
+            manualDescription.value = '';
+        }
+
+        // 解析文件内容
+        function parseFileContent(text, category) {
+            const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+            if (lines.length === 0) return null;
+
+            let title = '自定义内容';
+            let author = '';
+            let pinyin = [];
+            let content = [];
+            let description = '';
+            let inPinyin = false;
+            let inContent = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                if (line.startsWith('【标题】')) {
+                    title = line.substring(4).trim();
+                    inPinyin = false;
+                    inContent = false;
+                } else if (line.startsWith('【作者】')) {
+                    author = line.substring(4).trim();
+                    inPinyin = false;
+                    inContent = false;
+                } else if (line.startsWith('【拼音】')) {
+                    inPinyin = true;
+                    inContent = false;
+                    const pinyinText = line.substring(4).trim();
+                    if (pinyinText) {
+                        pinyin.push(pinyinText);
+                    }
+                } else if (line.startsWith('【说明】')) {
+                    description = line.substring(4).trim();
+                    inPinyin = false;
+                    inContent = false;
+                } else if (line.startsWith('【内容】')) {
+                    inPinyin = false;
+                    inContent = true;
+                } else if (!line.startsWith('【')) {
+                    if (inPinyin) {
+                        pinyin.push(line);
+                    } else if (inContent || (!inPinyin && !inContent)) {
+                        content.push(line);
+                    }
+                }
+            }
+
+            // 如果没有内容，使用整个文本
+            if (content.length === 0) {
+                content = [text];
+            }
+
+            // 构建内容对象
+            const contentItem = {
+                id: 'custom_' + Date.now(),
+                title: title,
+                content: content,
+                custom: true // 标记为自定义内容
+            };
+
+            if (author) contentItem.author = author;
+            if (pinyin.length > 0) contentItem.pinyin = pinyin;
+            if (description) contentItem.description = description;
+
+            return contentItem;
+        }
+
+        // 添加自定义内容
+        function addCustomContent(category, contentItem) {
+            if (!contentItem || !contentItem.title || !contentItem.content) {
+                alert('内容格式不正确，请检查后重试');
+                return false;
+            }
+
+            customContents[category].push(contentItem);
+            saveCustomContents();
+
+            // 刷新内容显示
+            renderContentTabs();
+            renderContent();
+
+            return true;
+        }
+
+        // 处理文件上传
+        function handleFileUpload() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('请选择一个文件');
+                return;
+            }
+
+            const category = uploadCategorySelect.value;
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const contentItem = parseFileContent(text, category);
+
+                if (contentItem) {
+                    if (addCustomContent(category, contentItem)) {
+                        alert('内容添加成功！');
+                        closeUploadModal();
+                    }
+                } else {
+                    alert('无法解析文件内容，请检查格式');
+                }
+            };
+
+            reader.onerror = function() {
+                alert('读取文件失败，请重试');
+            };
+
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // 处理手动输入
+        function handleManualInput() {
+            const category = manualCategorySelect.value;
+            const title = manualTitle.value.trim();
+            const content = manualContent.value.trim();
+
+            if (!title) {
+                alert('请输入标题');
+                return;
+            }
+
+            if (!content) {
+                alert('请输入内容');
+                return;
+            }
+
+            const contentItem = {
+                id: 'custom_' + Date.now(),
+                title: title,
+                content: content.split('\n').map(line => line.trim()).filter(line => line),
+                custom: true
+            };
+
+            if (category === 'poems') {
+                const author = manualAuthor.value.trim();
+                const pinyin = manualPinyin.value.trim();
+                if (author) contentItem.author = author;
+                if (pinyin) {
+                    contentItem.pinyin = pinyin.split('\n').map(line => line.trim()).filter(line => line);
+                }
+            } else if (category === 'pinyin' || category === 'texts') {
+                const description = manualDescription.value.trim();
+                if (description) contentItem.description = description;
+            }
+
+            if (addCustomContent(category, contentItem)) {
+                alert('内容添加成功！');
+                closeUploadModal();
+            }
+        }
+
+        // 显示管理自定义内容
+        function showManageContent() {
+            const merged = getCurrentContents();
+            manageContentList.innerHTML = '';
+
+            let hasCustomContent = false;
+
+            Object.keys(merged).forEach(categoryKey => {
+                const category = merged[categoryKey];
+                const customItems = category.items.filter(item => item.custom);
+
+                if (customItems.length > 0) {
+                    hasCustomContent = true;
+                    customItems.forEach((item, index) => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'content-item';
+
+                        const categoryIcon = READING_CONTENTS[categoryKey].icon;
+                        const categoryName = READING_CONTENTS[categoryKey].name;
+
+                        itemDiv.innerHTML = `
+                            <div class="content-item-info">
+                                <div class="content-item-title">${categoryIcon} ${item.title}</div>
+                                <div class="content-item-meta">${categoryName} ${item.author ? '· ' + item.author : ''}</div>
+                            </div>
+                            <div class="content-item-actions">
+                                <button class="btn-icon delete" onclick="deleteCustomContent('${categoryKey}', '${item.id}')">🗑️</button>
+                            </div>
+                        `;
+
+                        manageContentList.appendChild(itemDiv);
+                    });
+                }
+            });
+
+            if (!hasCustomContent) {
+                manageContentList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>还没有自定义内容</p>
+                        <p style="font-size: 0.9rem;">点击"上传朗读内容"添加自己的内容吧</p>
+                    </div>
+                `;
+            }
+
+            manageContentModal.classList.add('show');
+        }
+
+        // 删除自定义内容
+        function deleteCustomContent(category, itemId) {
+            if (!confirm('确定要删除这个内容吗？')) return;
+
+            customContents[category] = customContents[category].filter(item => item.id !== itemId);
+            saveCustomContents();
+
+            // 刷新显示
+            renderContentTabs();
+            renderContent();
+            showManageContent(); // 刷新管理列表
+        }
+
+        // 修改 renderContentTabs 使用合并后的内容
+        const originalRenderContentTabs = renderContentTabs;
+        renderContentTabs = function() {
+            const merged = getCurrentContents();
+            contentTabs.innerHTML = '';
+            Object.keys(merged).forEach(key => {
+                const category = merged[key];
+                const tab = document.createElement('div');
+                tab.className = 'tab-item' + (contentState.category === key ? ' active' : '');
+                // 显示自定义内容数量 - 使用响应式样式
+                const customCount = customContents[key].length;
+                const countBadge = customCount > 0 ? ` <span style="font-size:min(0.65em, 1.5vw);background:#ff9800;padding:min(1px, 0.2vw) min(4px, 0.8vw);border-radius:min(8px, 1.5vw);color:white;">+${customCount}</span>` : '';
+                tab.innerHTML = category.icon + ' ' + category.name + countBadge;
+                tab.addEventListener('click', () => switchCategory(key));
+                contentTabs.appendChild(tab);
+            });
+        };
+
+        // 修改 renderContent 使用合并后的内容
+        const originalRenderContent = renderContent;
+        renderContent = function() {
+            const merged = getCurrentContents();
+            const category = merged[contentState.category];
+            const item = category.items[contentState.itemIndex];
+
+            if (!item) {
+                // 如果当前索引超出范围，重置为0
+                contentState.itemIndex = 0;
+                renderContent();
+                return;
+            }
+
+            contentTitle.textContent = item.title;
+            contentAuthor.textContent = item.author || '';
+            contentIndex.textContent = (contentState.itemIndex + 1) + '/' + category.items.length;
+
+            // 显示拼音（如果有）
+            if (item.pinyin && contentState.showPinyin) {
+                pinyinText.innerHTML = item.pinyin.map(p => `<div class="line">${p}</div>`).join('');
+                pinyinText.style.display = 'block';
+            } else {
+                pinyinText.style.display = 'none';
+            }
+
+            // 显示内容
+            if (item.description) {
+                contentBody.innerHTML = `<div class="line">${item.content.join('')}</div><div class="line" style="margin-top:15px;font-size:1.1rem;color:#666;">${item.description}</div>`;
+            } else {
+                contentBody.innerHTML = item.content.map(line => `<div class="line">${line}</div>`).join('');
+            }
+
+            // 拼音按钮只在古诗时显示
+            pinyinBtn.style.display = contentState.category === 'poems' ? 'flex' : 'none';
+            pinyinBtn.style.background = contentState.showPinyin ? '#667eea' : '#f0f0f0';
+            pinyinBtn.style.color = contentState.showPinyin ? 'white' : '#333';
+        };
+
+        // 修改 switchCategory 使用合并后的内容
+        const originalSwitchCategory = switchCategory;
+        switchCategory = function(category) {
+            stopReading(); // 切换分类时停止朗读
+            contentState.category = category;
+            contentState.itemIndex = 0;
+            contentState.showPinyin = false;
+            renderContentTabs();
+            renderContent();
+            saveContentPreference();
+        };
+
+        // 修改 nextContent 和 prevContent 使用合并后的内容
+        const originalNextContent = nextContent;
+        nextContent = function() {
+            stopReading(); // 切换内容时停止朗读
+            const merged = getCurrentContents();
+            const category = merged[contentState.category];
+            if (contentState.itemIndex < category.items.length - 1) {
+                contentState.itemIndex++;
+                renderContent();
+                saveContentPreference();
+            }
+        };
+
+        const originalPrevContent = prevContent;
+        prevContent = function() {
+            stopReading(); // 切换内容时停止朗读
+            const merged = getCurrentContents();
+            const category = merged[contentState.category];
+            if (contentState.itemIndex > 0) {
+                contentState.itemIndex--;
+                renderContent();
+                saveContentPreference();
+            }
+        };
+
+        const originalRandomContent = randomContent;
+        randomContent = function() {
+            stopReading(); // 随机切换时停止朗读
+            const merged = getCurrentContents();
+            const category = merged[contentState.category];
+            contentState.itemIndex = Math.floor(Math.random() * category.items.length);
+            renderContent();
+            saveContentPreference();
+        };
+
+        // 初始化
+        function init() {
+            loadSettings();
+            loadCustomContents(); // 加载自定义内容
+            loadCustomAvatars(); // 加载自定义头像
+            loadContentPreference();
+            renderAnimalGrid();
+            renderContentTabs();
+            renderContent();
+            setupEventListeners();
+
+            // 初始化预览动物
+            currentPreviewAnimal = getNextAnimal();
+            nextAnimalPreview.textContent = currentPreviewAnimal;
+            nextAnimalPreview.classList.add('show');
+
+            // 加载语音列表
+            if ('speechSynthesis' in window) {
+                speechSynthesis.onvoiceschanged = function() {
+                    // 语音列表加载完成后，可以在这里做一些处理
+                    console.log('Voices loaded:', speechSynthesis.getVoices().length);
+                };
+            } else {
+                console.warn('Speech synthesis not supported');
+                // 如果不支持TTS，隐藏朗读按钮
+                if (readBtn) {
+                    readBtn.style.display = 'none';
+                }
+            }
+        }
+
+        // 加载设置
+        function loadSettings() {
+            const saved = localStorage.getItem('zooSettings');
+            if (saved) {
+                const savedSettings = JSON.parse(saved);
+                settings.threshold = savedSettings.threshold || DEFAULT_SETTINGS.threshold;
+                settings.speedMultiplier = savedSettings.speedMultiplier || DEFAULT_SETTINGS.speedMultiplier;
+                settings.pauseTolerance = savedSettings.pauseTolerance || DEFAULT_SETTINGS.pauseTolerance;
+                settings.selectedAnimals = savedSettings.selectedAnimals || DEFAULT_SETTINGS.selectedAnimals;
+            }
+            thresholdSlider.value = settings.threshold;
+            thresholdValue.textContent = settings.threshold;
+            speedMultiplierSlider.value = settings.speedMultiplier;
+            speedMultiplierValue.textContent = settings.speedMultiplier.toFixed(1) + 'x';
+            pauseToleranceSlider.value = settings.pauseTolerance;
+            pauseToleranceValue.textContent = settings.pauseTolerance + '秒';
+        }
+
+        // 保存设置
+        function saveSettings() {
+            localStorage.setItem('zooSettings', JSON.stringify(settings));
+        }
+
+        // 渲染动物选择网格
+        function renderAnimalGrid() {
+            animalGrid.innerHTML = '';
+            ALL_ANIMALS.forEach((animal, index) => {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'animal' + index;
+                checkbox.className = 'animal-checkbox';
+                checkbox.value = animal;
+                checkbox.checked = settings.selectedAnimals.includes(animal);
+
+                const label = document.createElement('label');
+                label.htmlFor = 'animal' + index;
+                label.className = 'animal-label';
+                label.textContent = animal;
+
+                animalGrid.appendChild(checkbox);
+                animalGrid.appendChild(label);
+            });
+        }
+
+        // 设置事件监听
+        function setupEventListeners() {
+            startButton.addEventListener('click', startApp);
+
+            thresholdSlider.addEventListener('input', (e) => {
+                settings.threshold = parseInt(e.target.value);
+                thresholdValue.textContent = settings.threshold;
+                saveSettings();
+            });
+
+            settingsButton.addEventListener('click', openSettings);
+            pauseButton.addEventListener('click', togglePause);
+            resetTimerButton.addEventListener('click', resetTimer);
+            clearAnimalsButton.addEventListener('click', clearAnimals);
+
+            speedMultiplierSlider.addEventListener('input', (e) => {
+                speedMultiplierValue.textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+            });
+
+            pauseToleranceSlider.addEventListener('input', (e) => {
+                pauseToleranceValue.textContent = e.target.value + '秒';
+            });
+
+            selectAllButton.addEventListener('click', () => {
+                document.querySelectorAll('.animal-checkbox').forEach(cb => {
+                    cb.checked = true;
+                });
+            });
+
+            deselectAllButton.addEventListener('click', () => {
+                document.querySelectorAll('.animal-checkbox').forEach(cb => {
+                    cb.checked = false;
+                });
+            });
+
+            saveButton.addEventListener('click', saveAndCloseSettings);
+            resetButton.addEventListener('click', resetSettings);
+
+            // 头像管理事件监听
+            manageAvatarsButton.addEventListener('click', showManageAvatars);
+            closeManageAvatarsButton.addEventListener('click', () => {
+                manageAvatarsModal.classList.remove('show');
+            });
+
+            manageAvatarsModal.addEventListener('click', (e) => {
+                if (e.target === manageAvatarsModal) {
+                    manageAvatarsModal.classList.remove('show');
+                }
+            });
+
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) {
+                    closeSettings();
+                }
+            });
+
+            // 朗读内容事件监听
+            prevBtn.addEventListener('click', prevContent);
+            nextBtn.addEventListener('click', nextContent);
+            randomBtn.addEventListener('click', randomContent);
+            pinyinBtn.addEventListener('click', togglePinyin);
+            readBtn.addEventListener('click', readCurrentContent);
+
+            // 上传内容事件监听
+            uploadContentBtn.addEventListener('click', openUploadModal);
+            manageContentBtn.addEventListener('click', showManageContent);
+            cancelUploadButton.addEventListener('click', closeUploadModal);
+            confirmUploadButton.addEventListener('click', () => {
+                if (uploadModalState.currentTab === 'file') {
+                    handleFileUpload();
+                } else {
+                    handleManualInput();
+                }
+            });
+
+            // 上传标签页切换
+            document.querySelectorAll('.upload-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    uploadModalState.currentTab = tab.dataset.tab;
+                    updateUploadTabUI();
+                });
+            });
+
+            // 分类选择变化时更新表单
+            uploadCategorySelect.addEventListener('change', updateFormByCategory);
+            manualCategorySelect.addEventListener('change', updateFormByCategory);
+
+            // 模态框点击外部关闭
+            uploadModal.addEventListener('click', (e) => {
+                if (e.target === uploadModal) {
+                    closeUploadModal();
+                }
+            });
+
+            manageContentModal.addEventListener('click', (e) => {
+                if (e.target === manageContentModal) {
+                    manageContentModal.classList.remove('show');
+                }
+            });
+
+            closeManageButton.addEventListener('click', () => {
+                manageContentModal.classList.remove('show');
+            });
+        }
+
+        // 启动应用
+        async function startApp() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+
+                analyser.fftSize = 256;
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                isListening = true;
+                startOverlay.classList.add('hidden');
+                startTimer();
+                analyzeVolume(dataArray);
+
+            } catch (err) {
+                alert('无法访问麦克风，请确保已授予权限。');
+                console.error(err);
+            }
+        }
+
+        // 分析音量
+        function analyzeVolume(dataArray) {
+            if (!isListening) return;
+
+            analyser.getByteFrequencyData(dataArray);
+
+            const sum = dataArray.reduce((a, b) => a + b, 0);
+            const average = sum / dataArray.length;
+
+            // 转换为分贝（近似值）
+            currentVolume = Math.round(average * 100 / 255);
+
+            if (!isPaused) {
+                // 当音量超过阈值时，累积生成进度
+                if (currentVolume >= settings.threshold) {
+                    // 重置低音量计时
+                    belowThresholdTime = 0;
+
+                    // 进度条发光效果
+                    progressBar.classList.add('glowing');
+
+                    // 音量越大，累积速度越快
+                    const volumeAboveThreshold = currentVolume - settings.threshold;
+                    // 大幅提高累积速度
+                    // 阈值附近: 约每秒+10 (约10秒生成一个)
+                    // 音量100: 约每秒+50 (每2秒生成一个)
+                    const accumulateRate = (0.15 + (volumeAboveThreshold / 50) * 0.7) * settings.speedMultiplier;
+                    spawnProgress += accumulateRate;
+
+                    // 进度超过20%时显示下一个动物预览（只设置一次）
+                    if (spawnProgress > 10 && !currentPreviewAnimal) {
+                        currentPreviewAnimal = getNextAnimal();
+                        updatePreviewDisplay(currentPreviewAnimal);
+                        nextAnimalPreview.classList.add('show');
+                    }
+
+                    // 进度满50时生成动物
+                    if (spawnProgress >= 50) {
+                        spawnAnimal();
+                        spawnProgress = 0;
+                        currentPreviewAnimal = null;
+                        // 生成新预览动物
+                        currentPreviewAnimal = getNextAnimal();
+                        updatePreviewDisplay(currentPreviewAnimal);
+                    }
+                } else {
+                    // 移除视觉反馈（但保持预览动物显示）
+                    progressBar.classList.remove('glowing');
+
+                    // 音量低于阈值时，累计低音量时间
+                    // requestAnimationFrame约每秒60次，所以每次增加约0.017秒
+                    belowThresholdTime += 0.017;
+
+                    // 只有停顿超过设置的时间后才开始缓慢衰减进度
+                    if (belowThresholdTime > settings.pauseTolerance) {
+                        spawnProgress = Math.max(0, spawnProgress - 0.05);
+                        // 如果进度完全归零，才重置预览动物
+                        if (spawnProgress <= 0) {
+                            currentPreviewAnimal = null;
+                        }
+                    }
+                }
+
+                // 更新进度条显示
+                const progressPercent = Math.min(100, (spawnProgress / 50) * 100);
+                progressBar.style.width = progressPercent + '%';
+
+                // 根据进度更新颜色等级
+                progressBar.className = 'progress-bar-inner';
+                if (progressPercent >= 90) {
+                    progressBar.classList.add('level-5');
+                } else if (progressPercent >= 80) {
+                    progressBar.classList.add('level-4');
+                } else if (progressPercent >= 60) {
+                    progressBar.classList.add('level-3');
+                } else if (progressPercent >= 40) {
+                    progressBar.classList.add('level-2');
+                } else if (progressPercent >= 20) {
+                    progressBar.classList.add('level-1');
+                } else {
+                    progressBar.classList.add('level-0');
+                }
+            }
+
+            requestAnimationFrame(() => analyzeVolume(dataArray));
+        }
+
+        // 生成动物
+        function spawnAnimal() {
+            // 使用当前预览的动物，如果没有预览则随机选择
+            const animal = currentPreviewAnimal || getNextRandomElement();
+
+            const size = Math.floor(Math.random() * 31) + 30;
+            const maxX = zooArea.offsetWidth - size;
+            const maxY = zooArea.offsetHeight * 0.6;
+            const targetX = Math.random() * maxX;
+            const targetY = Math.random() * maxY;
+
+            const element = document.createElement('div');
+            element.className = 'animal';
+
+            // 判断是否为图片
+            if (isImage(animal)) {
+                const img = document.createElement('img');
+                img.src = animal;
+                img.style.width = size + 'px';
+                img.style.height = size + 'px';
+                element.appendChild(img);
+            } else {
+                element.textContent = animal;
+                element.style.fontSize = size + 'px';
+            }
+
+            // 获取预览动物的位置（右下角）
+            const previewRect = nextAnimalPreview.getBoundingClientRect();
+            const zooRect = zooArea.getBoundingClientRect();
+
+            // 计算预览动物相对于zooArea的位置
+            const startX = previewRect.right - zooRect.left - size;
+            const startY = previewRect.top - zooRect.top;
+
+            // 初始位置在预览动物位置
+            element.style.left = startX + 'px';
+            element.style.top = startY + 'px';
+            element.style.transform = 'scale(1)';
+            element.style.opacity = '0.7';
+
+            zooArea.appendChild(element);
+
+            // 先隐藏预览动物（动画完成后重新显示）
+            nextAnimalPreview.classList.remove('show');
+
+            // 动画：跳到目标位置
+            setTimeout(() => {
+                element.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+                element.style.left = targetX + 'px';
+                element.style.top = targetY + 'px';
+                element.style.transform = 'scale(1)';
+                element.style.opacity = '1';
+            }, 50);
+
+            // 动画结束后移除transition属性并显示新的预览动物
+            setTimeout(() => {
+                element.style.transition = '';
+                // 重新显示预览动物
+                updatePreviewDisplay(currentPreviewAnimal);
+                nextAnimalPreview.classList.add('show');
+            }, 600);
+
+            element.addEventListener('click', () => {
+                element.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => element.remove(), 300);
+            });
+
+            // 限制动物数量
+            const animals = zooArea.querySelectorAll('.animal');
+            if (animals.length > 50) {
+                animals[0].remove();
+            }
+        }
+
+        // 计时器
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    elapsedTime++;
+                    updateTimerDisplay();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(elapsedTime / 60).toString().padStart(2, '0');
+            const seconds = (elapsedTime % 60).toString().padStart(2, '0');
+            timerDisplay.textContent = minutes + ':' + seconds;
+        }
+
+        // 重置计时器
+        function resetTimer() {
+            elapsedTime = 0;
+            updateTimerDisplay();
+        }
+
+        // 清空所有动物
+        function clearAnimals() {
+            const animals = zooArea.querySelectorAll('.animal');
+            animals.forEach(animal => {
+                animal.style.animation = 'fadeIn 0.3s ease-out reverse';
+                setTimeout(() => animal.remove(), 300);
+            });
+        }
+
+        // 暂停/继续
+        function togglePause() {
+            // 如果正在朗读，不允许手动切换暂停状态
+            if (isReading) {
+                return;
+            }
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? '▶️' : '⏸';
+            pauseButton.classList.toggle('paused', isPaused);
+
+            // 暂停时移除所有视觉反馈（但保持预览动物显示）
+            if (isPaused) {
+                progressBar.classList.remove('glowing');
+                nextAnimalPreview.style.opacity = '0.3';
+            } else {
+                nextAnimalPreview.style.opacity = '0.7';
+            }
+        }
+
+        // 设置面板
+        function openSettings() {
+            settingsModal.classList.add('show');
+            wasPausedBeforeSettings = isPaused;
+            if (!isPaused) {
+                togglePause();
+            }
+        }
+
+        function closeSettings() {
+            settingsModal.classList.remove('show');
+            // 关闭设置后恢复之前的状态
+            if (!wasPausedBeforeSettings) {
+                isPaused = false;
+                pauseButton.textContent = '⏸';
+                pauseButton.classList.remove('paused');
+            }
+        }
+
+        function saveAndCloseSettings() {
+            settings.threshold = parseInt(thresholdSlider.value);
+            settings.speedMultiplier = parseFloat(speedMultiplierSlider.value);
+            settings.pauseTolerance = parseInt(pauseToleranceSlider.value);
+
+            const selectedAnimals = [];
+            document.querySelectorAll('.animal-checkbox:checked').forEach(cb => {
+                selectedAnimals.push(cb.value);
+            });
+            settings.selectedAnimals = selectedAnimals;
+
+            saveSettings();
+            closeSettings();
+        }
+
+        function resetSettings() {
+            settings = { ...DEFAULT_SETTINGS };
+            thresholdSlider.value = settings.threshold;
+            thresholdValue.textContent = settings.threshold;
+            speedMultiplierSlider.value = settings.speedMultiplier;
+            speedMultiplierValue.textContent = settings.speedMultiplier.toFixed(1) + 'x';
+            pauseToleranceSlider.value = settings.pauseTolerance;
+            pauseToleranceValue.textContent = settings.pauseTolerance + '秒';
+
+            document.querySelectorAll('.animal-checkbox').forEach(cb => {
+                cb.checked = settings.selectedAnimals.includes(cb.value);
+            });
+        }
+
+        let wasPausedBeforeSettings = false;
+
+        // 将删除函数暴露到全局作用域（用于HTML中的onclick）
+        window.deleteCustomContent = deleteCustomContent;
+
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>
